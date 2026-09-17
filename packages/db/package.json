@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./*": "./src/*.ts"
   },
   "scripts": {
     "db:generate": "prisma generate",
@@ -13,11 +15,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
-    "@types/dotenv": "^8.2.3",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.13.4",
     "prisma": "^6.4.1"
   }
 }
