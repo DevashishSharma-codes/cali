@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/types.ts",
     "./types": "./src/types.ts",
-    "./*": "./src/*.ts",
-    ".": "./src/index.ts"
+    "./*": "./src/*.ts"
   },
   "dependencies": {
     "zod": "^3.24.2"
