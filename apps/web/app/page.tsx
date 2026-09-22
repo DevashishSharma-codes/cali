@@ -1,315 +1,253 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Sparkles,
-  ArrowRight,
-  PlusCircle,
-  LogIn,
-  UserPlus,
-  Layers,
-  Zap,
-  Lock,
-  Mail,
-  User,
-} from 'lucide-react';
-import { signinUser, signupUser, createRoom, getRoomBySlug } from '../lib/api';
+import { PlusCircle, LogIn, Sparkles, ArrowRight } from 'lucide-react';
 
-export default function HomePage() {
+export default function Home() {
   const router = useRouter();
+  const [createSlug, setCreateSlug] = useState('');
+  const [joinId, setJoinId] = useState('');
 
-  // Auth State
-  const [isLoginMode, setIsLoginMode] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-
-  // Room State
-  const [roomSlug, setRoomSlug] = useState('');
-  const [joinSlug, setJoinSlug] = useState('');
-
-  // UI state
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    if (savedToken) {
-      setToken(savedToken);
-    }
-  }, []);
-
-  // Handle Authentication (Sign In or Sign Up)
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      let res;
-      if (isLoginMode) {
-        res = await signinUser(email, password);
-      } else {
-        res = await signupUser(email, password, name);
-      }
-
-      if (res && res.token) {
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('userId', res.userId);
-        setToken(res.token);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Authentication error occurred');
-      }
-    } finally {
-      setLoading(false);
+    const id = createSlug.trim();
+    if (id) {
+      router.push(`/canvas/${id}`);
     }
   };
 
-  // Handle Creating a New Room
-  const handleCreateRoom = async (e: React.FormEvent) => {
+  const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) {
-      setError('Please sign in or register first to create a room.');
-      return;
+    const id = joinId.trim();
+    if (id) {
+      router.push(`/canvas/${id}`);
     }
-
-    const slugToUse = roomSlug.trim() || `room-${Math.floor(1000 + Math.random() * 9000)}`;
-    setError(null);
-    setLoading(true);
-
-    try {
-      const res = await createRoom(slugToUse, token);
-      router.push(`/canvas/${res.roomId}`);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Failed to create room');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Joining an Existing Room
-  const handleJoinRoom = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = joinSlug.trim();
-    if (!query) return;
-
-    setError(null);
-    setLoading(true);
-
-    try {
-      // If user provided a numeric room ID
-      if (!isNaN(Number(query))) {
-        router.push(`/canvas/${query}`);
-        return;
-      }
-
-      // Otherwise look up room by slug
-      const room = await getRoomBySlug(query);
-      if (room && room.id) {
-        router.push(`/canvas/${room.id}`);
-      } else {
-        setError('Room not found');
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Could not find room');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
-    setToken(null);
   };
 
   return (
-    <div className="landing-container">
-      {/* Background Decorative Gradient Blobs */}
-      <div className="blob-1" />
-      <div className="blob-2" />
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0f0f12',
+        backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+        color: '#f8fafc',
+        fontFamily: 'var(--font-sans, system-ui, -apple-system, sans-serif)',
+        padding: '24px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '8px 16px',
+            borderRadius: '9999px',
+            background: 'rgba(99, 102, 241, 0.12)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            color: '#a5b4fc',
+            fontSize: '13px',
+            fontWeight: 500,
+            marginBottom: '16px',
+          }}
+        >
+          <Sparkles size={16} /> Real-time Collaborative Canvas
+        </div>
+        <h1
+          style={{
+            fontSize: '2.75rem',
+            fontWeight: 800,
+            letterSpacing: '-0.025em',
+            margin: '0 0 12px 0',
+            background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
+          Excalidraw Clone
+        </h1>
+        <p style={{ color: '#94a3b8', fontSize: '1.05rem', margin: 0, maxWidth: '440px' }}>
+          Create or join a room using a Room ID to sketch together.
+        </p>
+      </div>
 
-      {/* Main Content Card */}
-      <div className="landing-card">
-        {/* Header Hero */}
-        <div className="landing-hero">
-          <div className="hero-badge">
-            <Sparkles size={14} className="badge-icon" />
-            <span>Hand-Drawn Collaborative Canvas</span>
+      {/* Action Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px',
+          width: '100%',
+          maxWidth: '740px',
+        }}
+      >
+        {/* Create Room Card */}
+        <div
+          style={{
+            background: 'rgba(23, 23, 28, 0.75)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
+            padding: '28px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: 'rgba(99, 102, 241, 0.15)',
+                color: '#818cf8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <PlusCircle size={24} />
+            </div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px 0', color: '#f8fafc' }}>
+              Create Room
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 0 20px 0', lineHeight: 1.4 }}>
+              Enter a Room ID to start drawing.
+            </p>
           </div>
-          <h1 className="hero-title">
-            Excali<span className="gradient-text">Draw</span>
-          </h1>
-          <p className="hero-desc">
-            A real-time whiteboard built with <strong>Rough.js</strong>, React, and WebSockets.
-            Sketch ideas, collaborate with others, and synchronize coordinates seamlessly.
-          </p>
+
+          <form onSubmit={handleCreateRoom} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input
+              type="text"
+              placeholder="e.g. 2"
+              value={createSlug}
+              onChange={(e) => setCreateSlug(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(15, 15, 18, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#ffffff',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                backgroundColor: '#6366f1',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '14px',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <span>Enter Room</span>
+              <ArrowRight size={16} />
+            </button>
+          </form>
         </div>
 
-        {/* Error Alert */}
-        {error && <div className="alert-error">{error}</div>}
-
-        {/* Authenticated View: Create or Join Room */}
-        {token ? (
-          <div className="dashboard-grid">
-            <div className="auth-status-bar">
-              <span>✅ Authenticated Session</span>
-              <button onClick={handleLogout} className="text-btn">
-                Log Out
-              </button>
+        {/* Join Room Card */}
+        <div
+          style={{
+            background: 'rgba(23, 23, 28, 0.75)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
+            padding: '28px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: 'rgba(6, 182, 212, 0.15)',
+                color: '#22d3ee',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <LogIn size={24} />
             </div>
-
-            {/* Create Room Form */}
-            <div className="card-section">
-              <h2 className="section-title">
-                <PlusCircle size={20} className="icon-teal" />
-                Create New Whiteboard
-              </h2>
-              <form onSubmit={handleCreateRoom} className="form-group">
-                <input
-                  type="text"
-                  value={roomSlug}
-                  onChange={(e) => setRoomSlug(e.target.value)}
-                  placeholder="e.g. system-design, brainstorm-room"
-                  className="input-field"
-                  minLength={3}
-                  maxLength={20}
-                  required
-                />
-                <button type="submit" disabled={loading} className="btn-primary">
-                  {loading ? 'Creating...' : 'Create Room'}
-                  <ArrowRight size={18} />
-                </button>
-              </form>
-            </div>
-
-            <div className="section-divider">
-              <span>OR</span>
-            </div>
-
-            {/* Join Room Form */}
-            <div className="card-section">
-              <h2 className="section-title">
-                <Layers size={20} className="icon-blue" />
-                Join Existing Whiteboard
-              </h2>
-              <form onSubmit={handleJoinRoom} className="form-group">
-                <input
-                  type="text"
-                  value={joinSlug}
-                  onChange={(e) => setJoinSlug(e.target.value)}
-                  placeholder="Enter room slug or room ID"
-                  className="input-field"
-                  required
-                />
-                <button type="submit" disabled={loading} className="btn-secondary">
-                  {loading ? 'Joining...' : 'Join Room'}
-                  <ArrowRight size={18} />
-                </button>
-              </form>
-            </div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px 0', color: '#f8fafc' }}>
+              Join Room
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 0 20px 0', lineHeight: 1.4 }}>
+              Enter an existing Room ID to join the session.
+            </p>
           </div>
-        ) : (
-          /* Unauthenticated View: Sign In / Sign Up */
-          <div className="auth-container">
-            <div className="auth-tabs">
-              <button
-                onClick={() => {
-                  setIsLoginMode(true);
-                  setError(null);
-                }}
-                className={`tab-btn ${isLoginMode ? 'active' : ''}`}
-              >
-                <LogIn size={16} />
-                Sign In
-              </button>
-              <button
-                onClick={() => {
-                  setIsLoginMode(false);
-                  setError(null);
-                }}
-                className={`tab-btn ${!isLoginMode ? 'active' : ''}`}
-              >
-                <UserPlus size={16} />
-                Sign Up
-              </button>
-            </div>
 
-            <form onSubmit={handleAuth} className="auth-form">
-              {!isLoginMode && (
-                <div className="input-wrap">
-                  <User size={18} className="input-icon" />
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your Full Name"
-                    className="input-field with-icon"
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="input-wrap">
-                <Mail size={18} className="input-icon" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email Address"
-                  className="input-field with-icon"
-                  required
-                />
-              </div>
-
-              <div className="input-wrap">
-                <Lock size={18} className="input-icon" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="input-field with-icon"
-                  required
-                />
-              </div>
-
-              <button type="submit" disabled={loading} className="btn-primary full-width">
-                {loading
-                  ? 'Please wait...'
-                  : isLoginMode
-                    ? 'Sign In to Whiteboard'
-                    : 'Create Account & Continue'}
-                <ArrowRight size={18} />
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Feature Highlights Footer */}
-        <div className="features-footer">
-          <div className="feature-item">
-            <Zap size={16} className="feature-icon" />
-            <span>Real-time Rough.js Drawing</span>
-          </div>
-          <div className="feature-item">
-            <Layers size={16} className="feature-icon" />
-            <span>Coordinate Sync via WS & DB</span>
-          </div>
+          <form onSubmit={handleJoinRoom} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input
+              type="text"
+              placeholder="e.g. 2"
+              value={joinId}
+              onChange={(e) => setJoinId(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(15, 15, 18, 0.8)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#ffffff',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                backgroundColor: '#0e7490',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '14px',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <span>Join Room</span>
+              <ArrowRight size={16} />
+            </button>
+          </form>
         </div>
       </div>
     </div>

@@ -79,6 +79,21 @@ wss.on('connection', (ws, request) => {
                     return;
                 }
 
+                // Ensure room exists in DB to prevent foreign key violations
+                const existingRoom = await prismaClient.room.findUnique({
+                    where: { id: numericRoomId }
+                });
+
+                if (!existingRoom) {
+                    await prismaClient.room.create({
+                        data: {
+                            id: numericRoomId,
+                            slug: `room-${numericRoomId}-${Date.now()}`,
+                            adminId: userId
+                        }
+                    });
+                }
+
                 const chat = await prismaClient.chat.create({
                     data: {
                         roomId: numericRoomId,
