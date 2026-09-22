@@ -17,7 +17,14 @@ export async function getExistingShapes(roomId: string | number): Promise<Shape[
   chronologicalMessages.forEach((msg: { message: string }) => {
     try {
       const shapeData = JSON.parse(msg.message);
-      if (shapeData && shapeData.type === "rect") {
+      if (
+        shapeData &&
+        (shapeData.type === "rect" ||
+          shapeData.type === "circle" ||
+          shapeData.type === "diamond" ||
+          shapeData.type === "line" ||
+          shapeData.type === "arrow")
+      ) {
         shapes.push(shapeData);
       }
     } catch (e) {

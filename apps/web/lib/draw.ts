@@ -11,10 +11,52 @@ export function draw(canvas: HTMLCanvasElement, shapes: Shape[]) {
   // Initialize roughjs
   const rc = rough.canvas(canvas);
 
-  // Draw all rectangles
   shapes.forEach((shape) => {
     if (shape.type === "rect") {
       rc.rectangle(shape.x, shape.y, shape.width, shape.height, {
+        stroke: "#ffffff",
+        strokeWidth: 2,
+      });
+    } else if (shape.type === "circle") {
+      rc.circle(shape.centerX, shape.centerY, shape.radius * 2, {
+        stroke: "#ffffff",
+        strokeWidth: 2,
+      });
+    } else if (shape.type === "diamond") {
+      const top: [number, number] = [shape.x + shape.width / 2, shape.y];
+      const right: [number, number] = [shape.x + shape.width, shape.y + shape.height / 2];
+      const bottom: [number, number] = [shape.x + shape.width / 2, shape.y + shape.height];
+      const left: [number, number] = [shape.x, shape.y + shape.height / 2];
+
+      rc.polygon([top, right, bottom, left], {
+        stroke: "#ffffff",
+        strokeWidth: 2,
+      });
+    } else if (shape.type === "line") {
+      rc.line(shape.startX, shape.startY, shape.endX, shape.endY, {
+        stroke: "#ffffff",
+        strokeWidth: 2,
+      });
+    } else if (shape.type === "arrow") {
+      // Main shaft
+      rc.line(shape.startX, shape.startY, shape.endX, shape.endY, {
+        stroke: "#ffffff",
+        strokeWidth: 2,
+      });
+
+      // Arrowhead calculations
+      const angle = Math.atan2(shape.endY - shape.startY, shape.endX - shape.startX);
+      const headLen = 15;
+      const leftX = shape.endX - headLen * Math.cos(angle - Math.PI / 6);
+      const leftY = shape.endY - headLen * Math.sin(angle - Math.PI / 6);
+      const rightX = shape.endX - headLen * Math.cos(angle + Math.PI / 6);
+      const rightY = shape.endY - headLen * Math.sin(angle + Math.PI / 6);
+
+      rc.line(shape.endX, shape.endY, leftX, leftY, {
+        stroke: "#ffffff",
+        strokeWidth: 2,
+      });
+      rc.line(shape.endX, shape.endY, rightX, rightY, {
         stroke: "#ffffff",
         strokeWidth: 2,
       });

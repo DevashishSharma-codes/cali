@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { draw } from '../lib/draw';
-import { Shape } from '../lib/types';
+import { Shape, Tool } from '../lib/types';
 import { getExistingShapes } from '../lib/api';
 import { useSocket } from '../hooks/useSocket';
+import { Toolbar } from './Toolbar';
 
 export function Canvas({ roomId }: { roomId: string | number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const [selectedTool, setSelectedTool] = useState<Tool>('rect');
   const [isDrawing, setIsDrawing] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
@@ -53,52 +55,100 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   }, [shapes]);
 
-  // Mouse down: record start coordinates
+  // Helper to construct a shape object from coordinates
+  const createShape = (tool: Tool, x1: number, y1: number, x2: number, y2: number): Shape => {
+    if (tool === 'rect') {
+      return {
+        type: 'rect',
+        x: x1,
+        y: y1,
+        width: x2 - x1,
+        height: y2 - y1,
+      };
+    } else if (tool === 'circle') {
+      const radius = Math.round(Math.hypot(x2 - x1, y2 - y1) / 2);
+      const centerX = Math.round((x1 + x2) / 2);
+      const centerY = Math.round((y1 + y2) / 2);
+      return {
+        type: 'circle',
+        centerX,
+        centerY,
+        radius,
+      };
+    } else if (tool === 'diamond') {
+      return {
+        type: 'diamond',
+        x: x1,
+        y: y1,
+        width: x2 - x1,
+        height: y2 - y1,
+      };
+    } else if (tool === 'line') {
+      return {
+        type: 'line',
+        startX: x1,
+        startY: y1,
+        endX: x2,
+        endY: y2,
+      };
+    } else {
+      return {
+        type: 'arrow',
+        startX: x1,
+        startY: y1,
+        endX: x2,
+        endY: y2,
+      };
+    }
+  };
+
+  // Mouse down: start drawing
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
     setStartX(e.clientX);
     setStartY(e.clientY);
   };
 
-  // Mouse up: calculate width/height, save rectangle, and send via WebSocket
+  // Mouse move: live preview of shape currently being drawn
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !canvasRef.current) return;
+    const previewShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
+    draw(canvasRef.current, [...shapes, previewShape]);
+  };
+
+  // Mouse up: finalize shape, update state, and broadcast over WebSocket
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     setIsDrawing(false);
 
-    const width = e.clientX - startX;
-    const height = e.clientY - startY;
-
-    const newRect: Shape = {
-      type: 'rect',
-      x: startX,
-      y: startY,
-      width,
-      height,
-    };
-
-    setShapes((prev) => [...prev, newRect]);
+    const newShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
+    setShapes((prev) => [...prev, newShape]);
 
     if (socket) {
       socket.send(
         JSON.stringify({
           type: 'chat',
           roomId: Number(roomId),
-          message: JSON.stringify(newRect),
+          message: JSON.stringify(newShape),
         })
       );
     }
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      style={{
-        backgroundColor: '#121212',
-        cursor: 'crosshair',
-        display: 'block',
-      }}
-    />
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <Toolbar selectedTool={selectedTool} setSelectedTool={setSelectedTool} />
+      <canvas
+        ref={canvasRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        style={{
+          backgroundColor: '#121212',
+          cursor: 'crosshair',
+          display: 'block',
+        }}
+      />
+    </div>
   );
 }
