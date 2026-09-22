@@ -1,10 +1,12 @@
 import express from "express";
+import cors from "cors";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import { middleware } from "./middleware.js";
 import { CreateRoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/types";
 import { prismaClient } from "@repo/db";
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 
@@ -121,6 +123,41 @@ app.post("/room", middleware, async (req, res) => {
         });
     }
 });
+
+app.get("/room/:slug", async (req, res) => {
+    const slug = req.params.slug;
+    const room = await prismaClient.room.findFirst({
+        where: {
+            slug: slug
+        }
+    });
+
+    if (!room) {
+        return res.status(404).json({
+            message: "Room not found"
+        });
+    }
+
+    res.json({
+        room
+    });
+});
+
+app.get("/chats/:roomId", async (req, res) => {
+    const roomId = Number(req.params.roomId);
+    const messages = await prismaClient.chat.findMany({
+        where: {
+            roomId: roomId
+        },
+        orderBy: {
+            id: 'desc'
+        },
+        take: 100
+    });
+
+    res.json({ messages });
+});
+
 
 app.listen(3001, () => {
     console.log('HTTP server is running on http://localhost:3001');
