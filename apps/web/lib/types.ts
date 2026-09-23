@@ -50,6 +50,24 @@ export type ArrowShape = {
   endY: number;
 };
 
-export type Shape = PencilShape | RectShape | CircleShape | DiamondShape | LineShape | ArrowShape;
+export type ImageShape = {
+  id?: number;
+  type: 'image';
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type Shape =
+  | PencilShape
+  | RectShape
+  | CircleShape
+  | DiamondShape
+  | LineShape
+  | ArrowShape
+  | ImageShape;
+
 
 

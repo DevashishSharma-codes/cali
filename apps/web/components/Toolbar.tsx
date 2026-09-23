@@ -1,16 +1,26 @@
 'use client';
 
+import { useRef } from 'react';
 import { Tool } from '../lib/types';
-import { Pencil, Square, Circle, Diamond, Minus, MoveRight, Eraser, Undo2 } from 'lucide-react';
+import { Pencil, Square, Circle, Diamond, Minus, MoveRight, Eraser, Undo2, Image as ImageIcon } from 'lucide-react';
 
 interface ToolbarProps {
   selectedTool: Tool;
   setSelectedTool: (tool: Tool) => void;
   onUndo?: () => void;
   canUndo?: boolean;
+  onUploadImage?: (file: File) => void;
 }
 
-export function Toolbar({ selectedTool, setSelectedTool, onUndo, canUndo = true }: ToolbarProps) {
+export function Toolbar({
+  selectedTool,
+  setSelectedTool,
+  onUndo,
+  canUndo = true,
+  onUploadImage,
+}: ToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const tools: { type: Tool; label: string; icon: React.ReactNode }[] = [
     { type: 'pencil', label: 'Pencil', icon: <Pencil size={18} /> },
     { type: 'rect', label: 'Rectangle', icon: <Square size={18} /> },
@@ -77,6 +87,51 @@ export function Toolbar({ selectedTool, setSelectedTool, onUndo, canUndo = true 
           </button>
         );
       })}
+
+      {onUploadImage && (
+        <>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onUploadImage(file);
+                e.target.value = '';
+              }
+            }}
+          />
+          <button
+            title="Upload Image"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s, color 0.15s, transform 0.1s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#94a3b8';
+            }}
+          >
+            <ImageIcon size={18} />
+          </button>
+        </>
+      )}
 
       {onUndo && (
         <>

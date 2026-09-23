@@ -125,5 +125,22 @@ export function isPointNearShape(px: number, py: number, shape: Shape, threshold
     return false;
   }
 
+  if (shape.type === "image") {
+    const minX = Math.min(shape.x, shape.x + shape.width);
+    const maxX = Math.max(shape.x, shape.x + shape.width);
+    const minY = Math.min(shape.y, shape.y + shape.height);
+    const maxY = Math.max(shape.y, shape.y + shape.height);
+
+    if (
+      px >= minX - threshold &&
+      px <= maxX + threshold &&
+      py >= minY - threshold &&
+      py <= maxY + threshold
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   return false;
 }

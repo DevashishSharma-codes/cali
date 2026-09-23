@@ -1,7 +1,9 @@
 import rough from "roughjs";
 import { Shape } from "./types";
 
-export function draw(canvas: HTMLCanvasElement, shapes: Shape[]) {
+const imageCache = new Map<string, HTMLImageElement>();
+
+export function draw(canvas: HTMLCanvasElement, shapes: Shape[], onImageLoaded?: () => void) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -12,7 +14,25 @@ export function draw(canvas: HTMLCanvasElement, shapes: Shape[]) {
   const rc = rough.canvas(canvas);
 
   shapes.forEach((shape) => {
-    if (shape.type === "pencil") {
+    if (shape.type === "image") {
+      let img = imageCache.get(shape.src);
+      if (!img) {
+        img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = shape.src;
+        img.onload = () => {
+          if (img) imageCache.set(shape.src, img);
+          if (onImageLoaded) {
+            onImageLoaded();
+          } else {
+            draw(canvas, shapes);
+          }
+        };
+        imageCache.set(shape.src, img);
+      } else if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, shape.x, shape.y, shape.width, shape.height);
+      }
+    } else if (shape.type === "pencil") {
       if (!shape.points || shape.points.length === 0) return;
       const firstPoint = shape.points[0];
       if (shape.points.length === 1 && firstPoint) {

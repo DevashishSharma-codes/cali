@@ -24,7 +24,8 @@ export async function getExistingShapes(roomId: string | number): Promise<Shape[
           shapeData.type === "circle" ||
           shapeData.type === "diamond" ||
           shapeData.type === "line" ||
-          shapeData.type === "arrow")
+          shapeData.type === "arrow" ||
+          shapeData.type === "image")
       ) {
         shapes.push({
           ...shapeData,

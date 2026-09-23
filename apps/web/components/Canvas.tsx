@@ -5,14 +5,17 @@ import { draw } from '../lib/draw';
 import { Shape, Tool } from '../lib/types';
 import { deleteShapeApi, getExistingShapes } from '../lib/api';
 import { isPointNearShape } from '../lib/hitTest';
+import { uploadImageToSupabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
+import { Loader2 } from 'lucide-react';
 
 export function Canvas({ roomId }: { roomId: string | number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [selectedTool, setSelectedTool] = useState<Tool>('pencil');
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
@@ -95,6 +98,100 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo]);
+
+  // Upload image to Supabase and place on canvas
+  const uploadAndAddImage = useCallback(
+    async (file: File | Blob, x?: number, y?: number) => {
+      try {
+        setIsUploading(true);
+        const publicUrl = await uploadImageToSupabase(file);
+        if (!publicUrl) {
+          alert('Failed to upload image to Supabase bucket "cali". Please verify bucket settings.');
+          return;
+        }
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = publicUrl;
+        img.onload = () => {
+          const maxWidth = 500;
+          const scale = img.naturalWidth > maxWidth ? maxWidth / img.naturalWidth : 1;
+          const width = Math.round((img.naturalWidth || 300) * scale);
+          const height = Math.round((img.naturalHeight || 200) * scale);
+
+          const posX = x !== undefined ? x : Math.max(20, Math.round((window.innerWidth - width) / 2));
+          const posY = y !== undefined ? y : Math.max(60, Math.round((window.innerHeight - height) / 2));
+
+          const newImageShape: Shape = {
+            type: 'image',
+            src: publicUrl,
+            x: posX,
+            y: posY,
+            width,
+            height,
+          };
+
+          setShapes((prev) => [...prev, newImageShape]);
+
+          if (socket) {
+            socket.send(
+              JSON.stringify({
+                type: 'chat',
+                roomId: Number(roomId),
+                message: JSON.stringify(newImageShape),
+              })
+            );
+          }
+        };
+      } catch (err) {
+        console.error('Error in uploadAndAddImage:', err);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [roomId, socket]
+  );
+
+  // Clipboard paste event listener (Ctrl+V / Cmd+V)
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item && item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (blob) {
+            e.preventDefault();
+            await uploadAndAddImage(blob);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [uploadAndAddImage]);
+
+  // Drag and drop event handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file && file.type.startsWith('image/')) {
+          await uploadAndAddImage(file, e.clientX, e.clientY);
+        }
+      }
+    }
+  };
 
   // Erase shapes touched by cursor coordinates
   const eraseAt = useCallback(
@@ -258,13 +355,45 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}
+    >
       <Toolbar
         selectedTool={selectedTool}
         setSelectedTool={setSelectedTool}
         onUndo={handleUndo}
         canUndo={shapes.length > 0}
+        onUploadImage={(file) => uploadAndAddImage(file)}
       />
+
+      {isUploading && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '24px',
+            right: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 18px',
+            backgroundColor: 'rgba(29, 29, 34, 0.95)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(99, 102, 241, 0.4)',
+            borderRadius: '10px',
+            color: '#ffffff',
+            fontSize: '13px',
+            fontWeight: 500,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+            zIndex: 150,
+          }}
+        >
+          <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+          <span>Uploading image to Supabase...</span>
+        </div>
+      )}
+
       <canvas
         ref={canvasRef}
         onMouseDown={handleMouseDown}
@@ -279,4 +408,5 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     </div>
   );
 }
+
 
