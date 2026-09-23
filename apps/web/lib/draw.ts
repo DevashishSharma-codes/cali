@@ -12,7 +12,25 @@ export function draw(canvas: HTMLCanvasElement, shapes: Shape[]) {
   const rc = rough.canvas(canvas);
 
   shapes.forEach((shape) => {
-    if (shape.type === "rect") {
+    if (shape.type === "pencil") {
+      if (!shape.points || shape.points.length === 0) return;
+      const firstPoint = shape.points[0];
+      if (shape.points.length === 1 && firstPoint) {
+        rc.circle(firstPoint.x, firstPoint.y, 2, {
+          stroke: "#ffffff",
+          strokeWidth: 2,
+          fill: "#ffffff",
+          fillStyle: "solid",
+        });
+      } else {
+        const pts: [number, number][] = shape.points.map((p) => [p.x, p.y]);
+        rc.linearPath(pts, {
+          stroke: "#ffffff",
+          strokeWidth: 2,
+          roughness: 0.5,
+        });
+      }
+    } else if (shape.type === "rect") {
       rc.rectangle(shape.x, shape.y, shape.width, shape.height, {
         stroke: "#ffffff",
         strokeWidth: 2,

@@ -1,7 +1,7 @@
 'use client';
 
 import { Tool } from '../lib/types';
-import { Square, Circle, Diamond, Minus, MoveRight } from 'lucide-react';
+import { Pencil, Square, Circle, Diamond, Minus, MoveRight } from 'lucide-react';
 
 interface ToolbarProps {
   selectedTool: Tool;
@@ -10,6 +10,7 @@ interface ToolbarProps {
 
 export function Toolbar({ selectedTool, setSelectedTool }: ToolbarProps) {
   const tools: { type: Tool; label: string; icon: React.ReactNode }[] = [
+    { type: 'pencil', label: 'Pencil', icon: <Pencil size={18} /> },
     { type: 'rect', label: 'Rectangle', icon: <Square size={18} /> },
     { type: 'circle', label: 'Circle', icon: <Circle size={18} /> },
     { type: 'diamond', label: 'Diamond', icon: <Diamond size={18} /> },

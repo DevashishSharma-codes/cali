@@ -19,7 +19,8 @@ export async function getExistingShapes(roomId: string | number): Promise<Shape[
       const shapeData = JSON.parse(msg.message);
       if (
         shapeData &&
-        (shapeData.type === "rect" ||
+        (shapeData.type === "pencil" ||
+          shapeData.type === "rect" ||
           shapeData.type === "circle" ||
           shapeData.type === "diamond" ||
           shapeData.type === "line" ||

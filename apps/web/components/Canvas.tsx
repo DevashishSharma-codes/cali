@@ -10,10 +10,11 @@ import { Toolbar } from './Toolbar';
 export function Canvas({ roomId }: { roomId: string | number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
-  const [selectedTool, setSelectedTool] = useState<Tool>('rect');
+  const [selectedTool, setSelectedTool] = useState<Tool>('pencil');
   const [isDrawing, setIsDrawing] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
+  const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
 
   const { socket, loading } = useSocket();
 
@@ -57,7 +58,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   // Helper to construct a shape object from coordinates
   const createShape = (tool: Tool, x1: number, y1: number, x2: number, y2: number): Shape => {
-    if (tool === 'rect') {
+    if (tool === 'pencil') {
+      return {
+        type: 'pencil',
+        points: pencilPointsRef.current,
+      };
+    } else if (tool === 'rect') {
       return {
         type: 'rect',
         x: x1,
@@ -107,13 +113,31 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     setIsDrawing(true);
     setStartX(e.clientX);
     setStartY(e.clientY);
+    if (selectedTool === 'pencil') {
+      pencilPointsRef.current = [{ x: e.clientX, y: e.clientY }];
+      if (canvasRef.current) {
+        draw(canvasRef.current, [
+          ...shapes,
+          { type: 'pencil', points: pencilPointsRef.current },
+        ]);
+      }
+    }
   };
 
   // Mouse move: live preview of shape currently being drawn
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !canvasRef.current) return;
-    const previewShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
-    draw(canvasRef.current, [...shapes, previewShape]);
+    if (selectedTool === 'pencil') {
+      pencilPointsRef.current.push({ x: e.clientX, y: e.clientY });
+      const previewShape: Shape = {
+        type: 'pencil',
+        points: [...pencilPointsRef.current],
+      };
+      draw(canvasRef.current, [...shapes, previewShape]);
+    } else {
+      const previewShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
+      draw(canvasRef.current, [...shapes, previewShape]);
+    }
   };
 
   // Mouse up: finalize shape, update state, and broadcast over WebSocket
@@ -121,7 +145,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (!isDrawing) return;
     setIsDrawing(false);
 
-    const newShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
+    let newShape: Shape;
+    if (selectedTool === 'pencil') {
+      newShape = {
+        type: 'pencil',
+        points: [...pencilPointsRef.current],
+      };
+      pencilPointsRef.current = [];
+    } else {
+      newShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
+    }
+
     setShapes((prev) => [...prev, newShape]);
 
     if (socket) {

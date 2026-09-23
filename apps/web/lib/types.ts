@@ -1,4 +1,9 @@
-export type Tool = 'rect' | 'circle' | 'diamond' | 'line' | 'arrow';
+export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow';
+
+export type PencilShape = {
+  type: 'pencil';
+  points: { x: number; y: number }[];
+};
 
 export type RectShape = {
   type: 'rect';
@@ -39,4 +44,5 @@ export type ArrowShape = {
   endY: number;
 };
 
-export type Shape = RectShape | CircleShape | DiamondShape | LineShape | ArrowShape;
+export type Shape = PencilShape | RectShape | CircleShape | DiamondShape | LineShape | ArrowShape;
+
