@@ -28,7 +28,7 @@ export function Toolbar({ selectedTool, setSelectedTool }: ToolbarProps) {
         alignItems: 'center',
         gap: '6px',
         padding: '6px 8px',
-        backgroundColor: 'rgba(30, 30, 36, 0.9)',
+        backgroundColor: 'rgba(29, 29, 34, 0.9)',
         backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255, 255, 255, 0.12)',
         borderRadius: '12px',
