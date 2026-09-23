@@ -1,11 +1,14 @@
+'use client';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { draw, EraserParticle } from '../lib/draw';
-import { Shape, Tool } from '../lib/types';
+import { FillStyle, Shape, StrokeStyle, Tool } from '../lib/types';
 import { deleteShapeApi, getExistingShapes } from '../lib/api';
 import { isPointNearShape } from '../lib/hitTest';
 import { deleteImageFromSupabase, uploadImageToSupabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
+import { StyleSidebar } from './StyleSidebar';
 import { Loader2 } from 'lucide-react';
 
 export function Canvas({ roomId }: { roomId: string | number }) {
@@ -19,6 +22,16 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
 
+  // Style attributes state
+  const [strokeColor, setStrokeColor] = useState<string>('#ffffff');
+  const [backgroundColor, setBackgroundColor] = useState<string>('transparent');
+  const [fillStyle, setFillStyle] = useState<FillStyle>('hachure');
+  const [strokeWidth, setStrokeWidth] = useState<number>(2);
+  const [strokeStyle, setStrokeStyle] = useState<StrokeStyle>('solid');
+  const [roughness, setRoughness] = useState<number>(1.2);
+  const [opacity, setOpacity] = useState<number>(100);
+  const [canvasBackground, setCanvasBackground] = useState<string>('#121212');
+
   // Text tool inline editing
   const [editingText, setEditingText] = useState<{ x: number; y: number; text: string } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -29,6 +42,21 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const animFrameRef = useRef<number | null>(null);
 
   const { socket, loading } = useSocket();
+
+  // Load canvas background preference from localStorage
+  useEffect(() => {
+    try {
+      const savedBg = localStorage.getItem('excali_canvas_bg');
+      if (savedBg) setCanvasBackground(savedBg);
+    } catch (e) {}
+  }, []);
+
+  const handleSetCanvasBackground = useCallback((color: string) => {
+    setCanvasBackground(color);
+    try {
+      localStorage.setItem('excali_canvas_bg', color);
+    } catch (e) {}
+  }, []);
 
   // Focus textarea when text editing starts
   useEffect(() => {
@@ -53,6 +81,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         x: editingText.x,
         y: editingText.y,
         fontSize: 24,
+        strokeColor,
+        opacity,
       };
       setShapes((prev) => [...prev, newTextShape]);
 
@@ -67,7 +97,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       }
     }
     setEditingText(null);
-  }, [editingText, roomId, socket]);
+  }, [editingText, roomId, socket, strokeColor, opacity]);
 
   // Double click anywhere on canvas to create/type text
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -102,7 +132,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         shapesRef.current,
         undefined,
         eraserPosRef.current,
-        particles
+        particles,
+        canvasBackground
       );
 
       if (particles.length > 0 || eraserPosRef.current !== null) {
@@ -113,15 +144,15 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     };
 
     animFrameRef.current = requestAnimationFrame(loop);
-  }, []);
+  }, [canvasBackground]);
 
   const spawnParticles = useCallback((x: number, y: number, count = 4, burst = false) => {
     const colors = [
-      'rgba(255, 255, 255, OPACITY)', // pure white
-      'rgba(248, 250, 252, OPACITY)', // soft white
-      'rgba(241, 245, 249, OPACITY)', // chalk white
-      'rgba(226, 232, 240, OPACITY)', // light eraser dust
-      'rgba(203, 213, 225, OPACITY)', // slate dust
+      'rgba(255, 255, 255, OPACITY)',
+      'rgba(248, 250, 252, OPACITY)',
+      'rgba(241, 245, 249, OPACITY)',
+      'rgba(226, 232, 240, OPACITY)',
+      'rgba(203, 213, 225, OPACITY)',
     ];
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -173,25 +204,25 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   }, [socket, loading, roomId]);
 
-  // 3. Set canvas dimensions and redraw whenever shapes array updates
+  // 3. Set canvas dimensions and redraw whenever shapes or canvasBackground updates
   useEffect(() => {
     if (canvasRef.current) {
       canvasRef.current.width = window.innerWidth;
       canvasRef.current.height = window.innerHeight;
-      draw(canvasRef.current, shapes);
+      draw(canvasRef.current, shapes, undefined, undefined, undefined, canvasBackground);
     }
-  }, [shapes]);
+  }, [shapes, canvasBackground]);
 
   // Redraw when custom sketchy web fonts finish loading
   useEffect(() => {
     if (typeof document !== 'undefined' && document.fonts) {
       document.fonts.ready.then(() => {
         if (canvasRef.current) {
-          draw(canvasRef.current, shapesRef.current);
+          draw(canvasRef.current, shapesRef.current, undefined, undefined, undefined, canvasBackground);
         }
       });
     }
-  }, []);
+  }, [canvasBackground]);
 
   // Handle Undo: remove last shape locally, from DB, from S3 if image, and over WebSocket
   const handleUndo = useCallback(() => {
@@ -255,6 +286,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             y: posY,
             width,
             height,
+            opacity,
           };
 
           // 1. Instantly display image on canvas without waiting for network upload
@@ -296,7 +328,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         console.error('Error creating image preview:', err);
       }
     },
-    [roomId, socket]
+    [roomId, socket, opacity]
   );
 
   // Clipboard paste event listener (Ctrl+V / Cmd+V)
@@ -378,12 +410,23 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     [roomId, socket, spawnParticles, startParticleLoop]
   );
 
-  // Helper to construct a shape object from coordinates
+  // Helper to construct a shape object from coordinates and current styles
   const createShape = (tool: Tool, x1: number, y1: number, x2: number, y2: number): Shape => {
+    const commonStyle = {
+      strokeColor,
+      backgroundColor,
+      fillStyle,
+      strokeWidth,
+      strokeStyle,
+      roughness,
+      opacity,
+    };
+
     if (tool === 'pencil') {
       return {
         type: 'pencil',
         points: pencilPointsRef.current,
+        ...commonStyle,
       };
     } else if (tool === 'rect') {
       return {
@@ -392,6 +435,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         y: y1,
         width: x2 - x1,
         height: y2 - y1,
+        ...commonStyle,
       };
     } else if (tool === 'circle') {
       const radius = Math.round(Math.hypot(x2 - x1, y2 - y1) / 2);
@@ -402,6 +446,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         centerX,
         centerY,
         radius,
+        ...commonStyle,
       };
     } else if (tool === 'diamond') {
       return {
@@ -410,6 +455,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         y: y1,
         width: x2 - x1,
         height: y2 - y1,
+        ...commonStyle,
       };
     } else if (tool === 'line') {
       return {
@@ -418,6 +464,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         startY: y1,
         endX: x2,
         endY: y2,
+        ...commonStyle,
       };
     } else {
       return {
@@ -426,6 +473,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         startY: y1,
         endX: x2,
         endY: y2,
+        ...commonStyle,
       };
     }
   };
@@ -452,8 +500,16 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       if (canvasRef.current) {
         draw(canvasRef.current, [
           ...shapes,
-          { type: 'pencil', points: pencilPointsRef.current },
-        ]);
+          {
+            type: 'pencil',
+            points: pencilPointsRef.current,
+            strokeColor,
+            strokeWidth,
+            roughness,
+            opacity,
+            strokeStyle,
+          },
+        ], undefined, undefined, undefined, canvasBackground);
       }
     }
   };
@@ -469,11 +525,16 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       const previewShape: Shape = {
         type: 'pencil',
         points: [...pencilPointsRef.current],
+        strokeColor,
+        strokeWidth,
+        roughness,
+        opacity,
+        strokeStyle,
       };
-      draw(canvasRef.current, [...shapes, previewShape]);
+      draw(canvasRef.current, [...shapes, previewShape], undefined, undefined, undefined, canvasBackground);
     } else {
       const previewShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
-      draw(canvasRef.current, [...shapes, previewShape]);
+      draw(canvasRef.current, [...shapes, previewShape], undefined, undefined, undefined, canvasBackground);
     }
   };
 
@@ -493,6 +554,11 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       newShape = {
         type: 'pencil',
         points: [...pencilPointsRef.current],
+        strokeColor,
+        strokeWidth,
+        roughness,
+        opacity,
+        strokeStyle,
       };
       pencilPointsRef.current = [];
     } else {
@@ -536,7 +602,13 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}
+      style={{
+        position: 'relative',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        backgroundColor: canvasBackground,
+      }}
     >
       <Toolbar
         selectedTool={selectedTool}
@@ -544,6 +616,25 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onUndo={handleUndo}
         canUndo={shapes.length > 0}
         onUploadImage={(file) => uploadAndAddImage(file)}
+      />
+
+      <StyleSidebar
+        strokeColor={strokeColor}
+        setStrokeColor={setStrokeColor}
+        backgroundColor={backgroundColor}
+        setBackgroundColor={setBackgroundColor}
+        fillStyle={fillStyle}
+        setFillStyle={setFillStyle}
+        strokeWidth={strokeWidth}
+        setStrokeWidth={setStrokeWidth}
+        strokeStyle={strokeStyle}
+        setStrokeStyle={setStrokeStyle}
+        roughness={roughness}
+        setRoughness={setRoughness}
+        opacity={opacity}
+        setOpacity={setOpacity}
+        canvasBackground={canvasBackground}
+        setCanvasBackground={handleSetCanvasBackground}
       />
 
       {editingText && (
@@ -566,7 +657,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             left: `${editingText.x}px`,
             top: `${editingText.y}px`,
             background: 'rgba(23, 23, 28, 0.85)',
-            color: '#ffffff',
+            color: strokeColor || '#ffffff',
             fontFamily: '"Architects Daughter", "Caveat", "Kalam", "Patrick Hand", "Comic Sans MS", cursive, sans-serif',
             fontSize: '24px',
             fontWeight: 600,
@@ -579,6 +670,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             minWidth: '140px',
             zIndex: 200,
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+            opacity: opacity / 100,
           }}
         />
       )}
@@ -617,7 +709,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onMouseLeave={handleMouseLeave}
         onDoubleClick={handleDoubleClick}
         style={{
-          backgroundColor: '#121212',
+          backgroundColor: canvasBackground,
           cursor: getCursor(),
           display: 'block',
         }}
@@ -625,5 +717,3 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     </div>
   );
 }
-
-

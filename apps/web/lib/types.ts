@@ -1,12 +1,26 @@
 export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow' | 'text' | 'eraser';
 
-export type PencilShape = {
+export type FillStyle = 'transparent' | 'solid' | 'hachure' | 'cross-hatch' | 'dots';
+export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
+export type Sloppiness = 'architect' | 'artist' | 'cartoonist';
+
+export interface ShapeStyle {
+  strokeColor?: string;
+  backgroundColor?: string;
+  fillStyle?: FillStyle;
+  strokeWidth?: number;
+  strokeStyle?: StrokeStyle;
+  roughness?: number;
+  opacity?: number; // 0 - 100
+}
+
+export type PencilShape = ShapeStyle & {
   id?: number;
   type: 'pencil';
   points: { x: number; y: number }[];
 };
 
-export type RectShape = {
+export type RectShape = ShapeStyle & {
   id?: number;
   type: 'rect';
   x: number;
@@ -15,7 +29,7 @@ export type RectShape = {
   height: number;
 };
 
-export type CircleShape = {
+export type CircleShape = ShapeStyle & {
   id?: number;
   type: 'circle';
   centerX: number;
@@ -23,7 +37,7 @@ export type CircleShape = {
   radius: number;
 };
 
-export type DiamondShape = {
+export type DiamondShape = ShapeStyle & {
   id?: number;
   type: 'diamond';
   x: number;
@@ -32,7 +46,7 @@ export type DiamondShape = {
   height: number;
 };
 
-export type LineShape = {
+export type LineShape = ShapeStyle & {
   id?: number;
   type: 'line';
   startX: number;
@@ -41,7 +55,7 @@ export type LineShape = {
   endY: number;
 };
 
-export type ArrowShape = {
+export type ArrowShape = ShapeStyle & {
   id?: number;
   type: 'arrow';
   startX: number;
@@ -50,7 +64,7 @@ export type ArrowShape = {
   endY: number;
 };
 
-export type TextShape = {
+export type TextShape = ShapeStyle & {
   id?: number;
   type: 'text';
   text: string;
@@ -59,7 +73,7 @@ export type TextShape = {
   fontSize?: number;
 };
 
-export type ImageShape = {
+export type ImageShape = ShapeStyle & {
   id?: number;
   type: 'image';
   src: string;
@@ -78,7 +92,3 @@ export type Shape =
   | ArrowShape
   | TextShape
   | ImageShape;
-
-
-
-
