@@ -52,3 +52,20 @@ export async function deleteShapeApi(shapeId: number): Promise<boolean> {
     return false;
   }
 }
+
+export async function updateShapeApi(shapeId: number, shape: Shape): Promise<boolean> {
+  try {
+    const res = await fetch(`${HTTP_URL}/chats/${shapeId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: JSON.stringify(shape) }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("Failed to update shape via API:", e);
+    return false;
+  }
+}
+

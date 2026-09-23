@@ -176,6 +176,27 @@ app.delete("/chats/:id", async (req, res) => {
     }
 });
 
+app.put("/chats/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid chat id" });
+    }
+    const { message } = req.body;
+    if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+    }
+
+    try {
+        await prismaClient.chat.updateMany({
+            where: { id: id },
+            data: { message: typeof message === "string" ? message : JSON.stringify(message) }
+        });
+        res.json({ message: "Chat updated successfully" });
+    } catch (e) {
+        res.status(500).json({ message: "Error updating chat" });
+    }
+});
+
 app.listen(3001, () => {
     console.log('HTTP server is running on http://localhost:3001');
 });

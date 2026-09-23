@@ -3,8 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { draw, EraserParticle } from '../lib/draw';
 import { FillStyle, Shape, StrokeStyle, Tool } from '../lib/types';
-import { deleteShapeApi, getExistingShapes } from '../lib/api';
-import { isPointNearShape, isShapeInBox, moveShape } from '../lib/hitTest';
+import { deleteShapeApi, getExistingShapes, updateShapeApi } from '../lib/api';
+import {
+  Bounds,
+  calculateNewBounds,
+  getCombinedBounds,
+  getResizeHandleAt,
+  getShapeBounds,
+  isPointNearShape,
+  isShapeInBox,
+  moveShape,
+  ResizeHandle,
+  resizeShape,
+} from '../lib/hitTest';
 import { deleteImageFromSupabase, uploadImageToSupabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
@@ -23,11 +34,19 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
 
-  // Selection state
+  // Selection & Resizing state
   const [selectedShapes, setSelectedShapes] = useState<Shape[]>([]);
   const selectedShapesRef = useRef<Shape[]>([]);
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
   const dragStartWorldPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizingStateRef = useRef<{
+    handle: ResizeHandle;
+    origBounds: Bounds;
+    origShapes: Shape[];
+    startMouse: { x: number; y: number };
+  } | null>(null);
+  const [hoverHandleCursor, setHoverHandleCursor] = useState<string | null>(null);
   const [marqueeBox, setMarqueeBox] = useState<{
     startX: number;
     startY: number;
@@ -463,6 +482,15 @@ export function Canvas({ roomId }: { roomId: string | number }) {
               }
               return [...prev, newShape];
             });
+          } else if (data.type === 'update_shape') {
+            const updatedShape = JSON.parse(data.message);
+            const updatedId = Number(data.shapeId);
+            setShapes((prev) =>
+              prev.map((s) => (s.id === updatedId ? { ...updatedShape, id: updatedId } : s))
+            );
+            setSelectedShapes((prev) =>
+              prev.map((s) => (s.id === updatedId ? { ...updatedShape, id: updatedId } : s))
+            );
           } else if (data.type === 'delete_shape') {
             const deletedId = Number(data.shapeId);
             setShapes((prev) => prev.filter((s) => s.id !== deletedId));
@@ -774,7 +802,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Mouse down: handle panning, selection, drawing, erasing, or text tool
+  // Mouse down: handle panning, selection handle resize, dragging selection, drawing, erasing, or text tool
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isSpacePressed || selectedTool === 'hand' || e.button === 1) {
       setIsPanning(true);
@@ -793,9 +821,40 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
     const worldPos = screenToWorld(e.clientX, e.clientY);
 
-    // SELECTION TOOL HANDLING
+    // SELECTION & RESIZING TOOL HANDLING
     if (selectedTool === 'select') {
-      // Find top-most shape under cursor (iterating from newest to oldest)
+      // 1. Check if clicking on a resize handle of currently selected shape(s)
+      if (selectedShapes.length > 0) {
+        const activeBounds =
+          selectedShapes.length === 1
+            ? getShapeBounds(selectedShapes[0]!)
+            : getCombinedBounds(selectedShapes);
+        const isSingleLine =
+          selectedShapes.length === 1 &&
+          (selectedShapes[0]!.type === 'line' || selectedShapes[0]!.type === 'arrow');
+
+        const handleHit = getResizeHandleAt(
+          worldPos.x,
+          worldPos.y,
+          activeBounds,
+          zoom,
+          isSingleLine,
+          selectedShapes[0]
+        );
+
+        if (handleHit) {
+          setIsResizing(true);
+          resizingStateRef.current = {
+            handle: handleHit.handle,
+            origBounds: activeBounds,
+            origShapes: selectedShapes.map((s) => JSON.parse(JSON.stringify(s))),
+            startMouse: worldPos,
+          };
+          return;
+        }
+      }
+
+      // 2. Find top-most shape under cursor (iterating from newest to oldest)
       const hitShape = [...shapes].reverse().find((s) => isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
 
       if (hitShape) {
@@ -878,7 +937,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Mouse move: handle viewport panning, dragging selected shapes, marquee selection, drawing preview, or erasing
+  // Mouse move: handle viewport panning, resizing shapes, dragging selected shapes, marquee selection, drawing preview, or erasing
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning) {
       const dx = e.clientX - panStartRef.current.startX;
@@ -890,21 +949,85 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
     const worldPos = screenToWorld(e.clientX, e.clientY);
 
-    // Dragging selected shapes
+    // SELECTION & RESIZING INTERACTIONS
     if (selectedTool === 'select') {
+      // 1. Resizing active shapes
+      if (isResizing && resizingStateRef.current) {
+        const { handle, origBounds, origShapes } = resizingStateRef.current;
+        const newBounds = calculateNewBounds(
+          origBounds,
+          handle,
+          worldPos.x,
+          worldPos.y,
+          e.shiftKey
+        );
+
+        const updatedSelected = selectedShapes.map((s, idx) => {
+          const origS = origShapes[idx] || s;
+          return resizeShape(s, origS, origBounds, newBounds, handle, worldPos.x, worldPos.y);
+        });
+
+        const nextShapes = shapes.map((s) => {
+          const selIdx = selectedShapes.findIndex((sel) => (sel.id && sel.id === s.id) || sel === s);
+          if (selIdx !== -1 && updatedSelected[selIdx]) {
+            return updatedSelected[selIdx]!;
+          }
+          return s;
+        });
+
+        setShapes(nextShapes);
+        setSelectedShapes(updatedSelected);
+
+        if (canvasRef.current) {
+          draw(
+            canvasRef.current,
+            nextShapes,
+            undefined,
+            undefined,
+            undefined,
+            canvasBackground,
+            panX,
+            panY,
+            zoom,
+            updatedSelected,
+            marqueeBox
+          );
+        }
+        return;
+      }
+
+      // 2. Dragging selected shapes
       if (isDraggingSelection && selectedShapes.length > 0) {
         const dx = worldPos.x - dragStartWorldPos.current.x;
         const dy = worldPos.y - dragStartWorldPos.current.y;
         dragStartWorldPos.current = worldPos;
 
         const selectedSet = new Set(selectedShapes);
-        setShapes((prev) =>
-          prev.map((s) => (selectedSet.has(s) ? moveShape(s, dx, dy) : s))
-        );
-        setSelectedShapes((prev) => prev.map((s) => moveShape(s, dx, dy)));
+        const nextShapes = shapes.map((s) => (selectedSet.has(s) ? moveShape(s, dx, dy) : s));
+        const nextSelected = selectedShapes.map((s) => moveShape(s, dx, dy));
+
+        setShapes(nextShapes);
+        setSelectedShapes(nextSelected);
+
+        if (canvasRef.current) {
+          draw(
+            canvasRef.current,
+            nextShapes,
+            undefined,
+            undefined,
+            undefined,
+            canvasBackground,
+            panX,
+            panY,
+            zoom,
+            nextSelected,
+            marqueeBox
+          );
+        }
         return;
       }
 
+      // 3. Marquee selection
       if (marqueeBox) {
         const currentMarquee = {
           ...marqueeBox,
@@ -923,6 +1046,28 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         const enclosed = shapes.filter((s) => isShapeInBox(s, box));
         setSelectedShapes(enclosed);
         return;
+      }
+
+      // 4. Hover handle cursor detection when idle
+      if (selectedShapes.length > 0) {
+        const activeBounds =
+          selectedShapes.length === 1
+            ? getShapeBounds(selectedShapes[0]!)
+            : getCombinedBounds(selectedShapes);
+        const isSingleLine =
+          selectedShapes.length === 1 &&
+          (selectedShapes[0]!.type === 'line' || selectedShapes[0]!.type === 'arrow');
+        const handleHit = getResizeHandleAt(
+          worldPos.x,
+          worldPos.y,
+          activeBounds,
+          zoom,
+          isSingleLine,
+          selectedShapes[0]
+        );
+        setHoverHandleCursor(handleHit ? handleHit.cursor : null);
+      } else {
+        setHoverHandleCursor(null);
       }
       return;
     }
@@ -973,7 +1118,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Mouse up: finalize shape, stop panning, or end selection/marquee
+  // Mouse up: finalize shape, finalize resize/drag, stop panning, or end marquee
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning) {
       setIsPanning(false);
@@ -981,21 +1126,51 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
 
     if (selectedTool === 'select') {
-      if (isDraggingSelection) {
-        setIsDraggingSelection(false);
-        // Sync moved shapes to websocket peers
-        if (socket && selectedShapes.length > 0) {
+      if (isResizing) {
+        setIsResizing(false);
+        resizingStateRef.current = null;
+        // Sync resized shapes to backend and peers
+        if (selectedShapes.length > 0) {
           selectedShapes.forEach((shape) => {
-            socket.send(
-              JSON.stringify({
-                type: 'chat',
-                roomId: Number(roomId),
-                message: JSON.stringify(shape),
-              })
-            );
+            if (shape.id) {
+              updateShapeApi(shape.id, shape);
+            }
+            if (socket) {
+              socket.send(
+                JSON.stringify({
+                  type: shape.id ? 'update_shape' : 'chat',
+                  roomId: Number(roomId),
+                  shapeId: shape.id,
+                  message: JSON.stringify(shape),
+                })
+              );
+            }
           });
         }
       }
+
+      if (isDraggingSelection) {
+        setIsDraggingSelection(false);
+        // Sync moved shapes to backend and peers
+        if (selectedShapes.length > 0) {
+          selectedShapes.forEach((shape) => {
+            if (shape.id) {
+              updateShapeApi(shape.id, shape);
+            }
+            if (socket) {
+              socket.send(
+                JSON.stringify({
+                  type: shape.id ? 'update_shape' : 'chat',
+                  roomId: Number(roomId),
+                  shapeId: shape.id,
+                  message: JSON.stringify(shape),
+                })
+              );
+            }
+          });
+        }
+      }
+
       if (marqueeBox) {
         setMarqueeBox(null);
       }
@@ -1045,12 +1220,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (isPanning) {
       setIsPanning(false);
     }
+    if (isResizing) {
+      setIsResizing(false);
+      resizingStateRef.current = null;
+    }
     if (isDraggingSelection) {
       setIsDraggingSelection(false);
     }
     if (marqueeBox) {
       setMarqueeBox(null);
     }
+    setHoverHandleCursor(null);
     if (selectedTool === 'eraser') {
       eraserPosRef.current = null;
       startParticleLoop();
@@ -1065,6 +1245,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       return 'grab';
     }
     if (selectedTool === 'select') {
+      if (isResizing && hoverHandleCursor) {
+        return hoverHandleCursor;
+      }
+      if (hoverHandleCursor) {
+        return hoverHandleCursor;
+      }
       return isDraggingSelection ? 'grabbing' : 'default';
     }
     if (selectedTool === 'text') {

@@ -1,6 +1,6 @@
 import rough from "roughjs";
 import { Shape } from "./types";
-import { getShapeBounds } from "./hitTest";
+import { getShapeBounds, getCombinedBounds, getSelectionHandles } from "./hitTest";
 
 export interface EraserParticle {
   x: number;
@@ -177,46 +177,83 @@ export function draw(
     ctx.restore();
   });
 
-  // Render selection bounding boxes & corner handles
+  // Render selection bounding boxes & 8 resize handles
   if (selectedShapes && selectedShapes.length > 0) {
     ctx.save();
     const pad = 6 / zoom;
-    const handleSize = 7 / zoom;
+    const handleSize = 8 / zoom;
 
-    selectedShapes.forEach((shape) => {
-      const bounds = getShapeBounds(shape);
-      const minX = bounds.minX - pad;
-      const minY = bounds.minY - pad;
-      const maxX = bounds.maxX + pad;
-      const maxY = bounds.maxY + pad;
-      const w = maxX - minX;
-      const h = maxY - minY;
-
-      // Dashed Selection Box
-      ctx.strokeStyle = "#cae39f";
-      ctx.lineWidth = 1.5 / zoom;
-      ctx.setLineDash([4 / zoom, 4 / zoom]);
-      ctx.strokeRect(minX, minY, w, h);
-
-      // Corner Grab Handles
-      ctx.setLineDash([]);
-      ctx.fillStyle = "#ffffff";
-      ctx.strokeStyle = "#8fb654";
-      ctx.lineWidth = 1.5 / zoom;
-
-      const corners = [
-        [minX, minY],
-        [maxX, minY],
-        [maxX, maxY],
-        [minX, maxY],
-      ];
-
-      corners.forEach(([cx, cy]) => {
-        if (cx === undefined || cy === undefined) return;
-        ctx.fillRect(cx - handleSize / 2, cy - handleSize / 2, handleSize, handleSize);
-        ctx.strokeRect(cx - handleSize / 2, cy - handleSize / 2, handleSize, handleSize);
+    // 1. If multiple shapes selected, render subtle dashed outlines for each individual shape
+    if (selectedShapes.length > 1) {
+      selectedShapes.forEach((shape) => {
+        const bounds = getShapeBounds(shape);
+        const minX = bounds.minX - pad / 2;
+        const minY = bounds.minY - pad / 2;
+        const maxX = bounds.maxX + pad / 2;
+        const maxY = bounds.maxY + pad / 2;
+        ctx.strokeStyle = "rgba(202, 227, 159, 0.45)";
+        ctx.lineWidth = 1 / zoom;
+        ctx.setLineDash([3 / zoom, 3 / zoom]);
+        ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       });
+    }
+
+    // 2. Compute active selection bounds (single shape or combined group)
+    const activeBounds =
+      selectedShapes.length === 1
+        ? getShapeBounds(selectedShapes[0]!)
+        : getCombinedBounds(selectedShapes);
+
+    const isSingleLine =
+      selectedShapes.length === 1 &&
+      (selectedShapes[0]!.type === "line" || selectedShapes[0]!.type === "arrow");
+
+    const selMinX = activeBounds.minX - pad;
+    const selMinY = activeBounds.minY - pad;
+    const selMaxX = activeBounds.maxX + pad;
+    const selMaxY = activeBounds.maxY + pad;
+    const selW = selMaxX - selMinX;
+    const selH = selMaxY - selMinY;
+
+    // Main Selection Outline
+    ctx.strokeStyle = "#cae39f";
+    ctx.lineWidth = 1.5 / zoom;
+    ctx.setLineDash([4 / zoom, 4 / zoom]);
+    ctx.strokeRect(selMinX, selMinY, selW, selH);
+
+    // Render Resize Handles
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#8fb654";
+    ctx.lineWidth = 1.5 / zoom;
+
+    const paddedBounds = {
+      minX: selMinX,
+      minY: selMinY,
+      maxX: selMaxX,
+      maxY: selMaxY,
+      width: selW,
+      height: selH,
+    };
+
+    const handles = getSelectionHandles(
+      paddedBounds,
+      isSingleLine,
+      selectedShapes[0]
+    );
+
+    handles.forEach((h) => {
+      if (h.handle === "start" || h.handle === "end") {
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, 4.5 / zoom, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+        ctx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize);
+      }
     });
+
     ctx.restore();
   }
 
@@ -228,10 +265,10 @@ export function draw(
     const w = Math.abs(marqueeBox.currentX - marqueeBox.startX);
     const h = Math.abs(marqueeBox.currentY - marqueeBox.startY);
 
-    ctx.fillStyle = "rgba(188, 215, 140, 0.18)";
+    ctx.fillStyle = "rgba(202, 227, 159, 0.15)";
     ctx.fillRect(minX, minY, w, h);
 
-    ctx.strokeStyle = "rgba(188, 215, 140, 0.9)";
+    ctx.strokeStyle = "rgba(202, 227, 159, 0.85)";
     ctx.lineWidth = 1.5 / zoom;
     ctx.setLineDash([4 / zoom, 4 / zoom]);
     ctx.strokeRect(minX, minY, w, h);

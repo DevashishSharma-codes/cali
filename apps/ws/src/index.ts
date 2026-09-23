@@ -147,6 +147,35 @@ wss.on('connection', (ws, request) => {
                     }
                 });
             }
+
+            if (parsedMessage.type === "update_shape") {
+                const roomId = parsedMessage.roomId;
+                const messageText = parsedMessage.message;
+                const shapeId = Number(parsedMessage.shapeId);
+
+                if (!isNaN(shapeId) && messageText) {
+                    try {
+                        await prismaClient.chat.updateMany({
+                            where: { id: shapeId },
+                            data: { message: messageText }
+                        });
+                        console.log(`Updated chat/shape ${shapeId} in DB`);
+                    } catch (e) {
+                        console.error(`Failed to update chat ${shapeId} in DB:`, e);
+                    }
+                }
+
+                users.forEach(u => {
+                    if (roomId && u.rooms.includes(roomId.toString())) {
+                        u.ws.send(JSON.stringify({
+                            type: "update_shape",
+                            shapeId,
+                            message: messageText,
+                            roomId
+                        }));
+                    }
+                });
+            }
         } catch (e) {
             console.error("Failed to process message:", e);
         }

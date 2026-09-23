@@ -9,6 +9,15 @@ export interface Bounds {
   height: number;
 }
 
+export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'start' | 'end';
+
+export interface HandlePosition {
+  handle: ResizeHandle;
+  x: number;
+  y: number;
+  cursor: string;
+}
+
 export function distanceToSegment(
   px: number,
   py: number,
@@ -225,12 +234,270 @@ export function getShapeBounds(shape: Shape): Bounds {
   return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
 }
 
+export function getCombinedBounds(shapes: Shape[]): Bounds {
+  if (shapes.length === 0) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0, width: 0, height: 0 };
+  }
+  const allBounds = shapes.map(getShapeBounds);
+  const minX = Math.min(...allBounds.map((b) => b.minX));
+  const minY = Math.min(...allBounds.map((b) => b.minY));
+  const maxX = Math.max(...allBounds.map((b) => b.maxX));
+  const maxY = Math.max(...allBounds.map((b) => b.maxY));
+  return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+}
+
+export function getSelectionHandles(
+  bounds: Bounds,
+  isSingleLineOrArrow?: boolean,
+  lineShape?: Shape
+): HandlePosition[] {
+  const { minX, minY, maxX, maxY, width, height } = bounds;
+  const midX = minX + width / 2;
+  const midY = minY + height / 2;
+
+  if (isSingleLineOrArrow && lineShape && (lineShape.type === "line" || lineShape.type === "arrow")) {
+    return [
+      { handle: "start", x: lineShape.startX, y: lineShape.startY, cursor: "crosshair" },
+      { handle: "end", x: lineShape.endX, y: lineShape.endY, cursor: "crosshair" },
+      { handle: "nw", x: minX, y: minY, cursor: "nwse-resize" },
+      { handle: "ne", x: maxX, y: minY, cursor: "nesw-resize" },
+      { handle: "se", x: maxX, y: maxY, cursor: "nwse-resize" },
+      { handle: "sw", x: minX, y: maxY, cursor: "nesw-resize" },
+    ];
+  }
+
+  return [
+    { handle: "nw", x: minX, y: minY, cursor: "nwse-resize" },
+    { handle: "n", x: midX, y: minY, cursor: "ns-resize" },
+    { handle: "ne", x: maxX, y: minY, cursor: "nesw-resize" },
+    { handle: "e", x: maxX, y: midY, cursor: "ew-resize" },
+    { handle: "se", x: maxX, y: maxY, cursor: "nwse-resize" },
+    { handle: "s", x: midX, y: maxY, cursor: "ns-resize" },
+    { handle: "sw", x: minX, y: maxY, cursor: "nesw-resize" },
+    { handle: "w", x: minX, y: midY, cursor: "ew-resize" },
+  ];
+}
+
+export function getResizeHandleAt(
+  px: number,
+  py: number,
+  bounds: Bounds,
+  zoom: number,
+  isSingleLineOrArrow?: boolean,
+  lineShape?: Shape
+): HandlePosition | null {
+  const handles = getSelectionHandles(bounds, isSingleLineOrArrow, lineShape);
+  const threshold = 10 / zoom;
+
+  for (const h of handles) {
+    if (Math.hypot(px - h.x, py - h.y) <= threshold) {
+      return h;
+    }
+  }
+  return null;
+}
+
+export function calculateNewBounds(
+  origBounds: Bounds,
+  handle: ResizeHandle,
+  worldX: number,
+  worldY: number,
+  preserveAspect = false
+): Bounds {
+  let minX = origBounds.minX;
+  let minY = origBounds.minY;
+  let maxX = origBounds.maxX;
+  let maxY = origBounds.maxY;
+
+  switch (handle) {
+    case "se":
+      maxX = worldX;
+      maxY = worldY;
+      break;
+    case "nw":
+      minX = worldX;
+      minY = worldY;
+      break;
+    case "ne":
+      maxX = worldX;
+      minY = worldY;
+      break;
+    case "sw":
+      minX = worldX;
+      maxY = worldY;
+      break;
+    case "n":
+      minY = worldY;
+      break;
+    case "s":
+      maxY = worldY;
+      break;
+    case "w":
+      minX = worldX;
+      break;
+    case "e":
+      maxX = worldX;
+      break;
+    default:
+      break;
+  }
+
+  const finalMinX = Math.min(minX, maxX);
+  const finalMaxX = Math.max(minX, maxX);
+  const finalMinY = Math.min(minY, maxY);
+  const finalMaxY = Math.max(minY, maxY);
+
+  let width = Math.max(5, finalMaxX - finalMinX);
+  let height = Math.max(5, finalMaxY - finalMinY);
+
+  if (preserveAspect && origBounds.width > 0 && origBounds.height > 0) {
+    const origAspect = origBounds.width / origBounds.height;
+    if (width / height > origAspect) {
+      width = height * origAspect;
+    } else {
+      height = width / origAspect;
+    }
+  }
+
+  return {
+    minX: finalMinX,
+    minY: finalMinY,
+    maxX: finalMinX + width,
+    maxY: finalMinY + height,
+    width,
+    height,
+  };
+}
+
+export function resizeShape(
+  shape: Shape,
+  origShape: Shape,
+  origBounds: Bounds,
+  newBounds: Bounds,
+  handle: ResizeHandle,
+  worldX: number,
+  worldY: number
+): Shape {
+  const origW = Math.max(1, origBounds.width);
+  const origH = Math.max(1, origBounds.height);
+  const newW = Math.max(5, newBounds.width);
+  const newH = Math.max(5, newBounds.height);
+
+  if (shape.type === "pencil") {
+    if (origShape.type !== "pencil" || !origShape.points || origShape.points.length === 0) {
+      return shape;
+    }
+    const newPoints = origShape.points.map((p) => {
+      const relX = (p.x - origBounds.minX) / origW;
+      const relY = (p.y - origBounds.minY) / origH;
+      return {
+        x: newBounds.minX + relX * newW,
+        y: newBounds.minY + relY * newH,
+      };
+    });
+
+    return {
+      ...shape,
+      points: newPoints,
+    };
+  }
+
+  if (shape.type === "rect" || shape.type === "diamond" || shape.type === "image") {
+    if (origShape.type !== "rect" && origShape.type !== "diamond" && origShape.type !== "image") {
+      return shape;
+    }
+    const relX = (origShape.x - origBounds.minX) / origW;
+    const relY = (origShape.y - origBounds.minY) / origH;
+    const relW = origShape.width / origW;
+    const relH = origShape.height / origH;
+
+    return {
+      ...shape,
+      x: Math.round(newBounds.minX + relX * newW),
+      y: Math.round(newBounds.minY + relY * newH),
+      width: Math.round(Math.max(5, relW * newW)),
+      height: Math.round(Math.max(5, relH * newH)),
+    };
+  }
+
+  if (shape.type === "circle") {
+    if (origShape.type !== "circle") {
+      return shape;
+    }
+    const relCenterX = (origShape.centerX - origBounds.minX) / origW;
+    const relCenterY = (origShape.centerY - origBounds.minY) / origH;
+
+    const newCenterX = Math.round(newBounds.minX + relCenterX * newW);
+    const newCenterY = Math.round(newBounds.minY + relCenterY * newH);
+    const newRadius = Math.round(Math.max(4, Math.min(newW, newH) / 2));
+
+    return {
+      ...shape,
+      centerX: newCenterX,
+      centerY: newCenterY,
+      radius: newRadius,
+    };
+  }
+
+  if (shape.type === "line" || shape.type === "arrow") {
+    if (origShape.type !== "line" && origShape.type !== "arrow") {
+      return shape;
+    }
+    if (handle === "start") {
+      return {
+        ...shape,
+        startX: Math.round(worldX),
+        startY: Math.round(worldY),
+      };
+    }
+    if (handle === "end") {
+      return {
+        ...shape,
+        endX: Math.round(worldX),
+        endY: Math.round(worldY),
+      };
+    }
+
+    const relStartX = (origShape.startX - origBounds.minX) / origW;
+    const relStartY = (origShape.startY - origBounds.minY) / origH;
+    const relEndX = (origShape.endX - origBounds.minX) / origW;
+    const relEndY = (origShape.endY - origBounds.minY) / origH;
+
+    return {
+      ...shape,
+      startX: Math.round(newBounds.minX + relStartX * newW),
+      startY: Math.round(newBounds.minY + relStartY * newH),
+      endX: Math.round(newBounds.minX + relEndX * newW),
+      endY: Math.round(newBounds.minY + relEndY * newH),
+    };
+  }
+
+  if (shape.type === "text") {
+    if (origShape.type !== "text") {
+      return shape;
+    }
+    const relX = (origShape.x - origBounds.minX) / origW;
+    const relY = (origShape.y - origBounds.minY) / origH;
+    const scale = Math.max(0.2, Math.min(newW / origW, newH / origH));
+    const origFontSize = origShape.fontSize || 24;
+    const newFontSize = Math.max(12, Math.round(origFontSize * scale));
+
+    return {
+      ...shape,
+      x: Math.round(newBounds.minX + relX * newW),
+      y: Math.round(newBounds.minY + relY * newH),
+      fontSize: newFontSize,
+    };
+  }
+
+  return shape;
+}
+
 export function isShapeInBox(
   shape: Shape,
   box: { minX: number; minY: number; maxX: number; maxY: number }
 ): boolean {
   const b = getShapeBounds(shape);
-  // Intersect test between box and shape bounds
   return !(
     b.maxX < box.minX ||
     b.minX > box.maxX ||
