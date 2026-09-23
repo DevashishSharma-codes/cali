@@ -142,5 +142,23 @@ export function isPointNearShape(px: number, py: number, shape: Shape, threshold
     return false;
   }
 
+  if (shape.type === "text") {
+    const fontSize = shape.fontSize || 24;
+    const lines = shape.text.split("\n");
+    const maxLineLen = Math.max(...lines.map((l) => l.length), 1);
+    const width = maxLineLen * (fontSize * 0.65);
+    const height = lines.length * (fontSize * 1.35);
+
+    if (
+      px >= shape.x - threshold &&
+      px <= shape.x + width + threshold &&
+      py >= shape.y - threshold &&
+      py <= shape.y + height + threshold
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   return false;
 }

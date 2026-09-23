@@ -19,6 +19,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
 
+  // Text tool inline editing
+  const [editingText, setEditingText] = useState<{ x: number; y: number; text: string } | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
   // Eraser rubbing effect & particles
   const particlesRef = useRef<EraserParticle[]>([]);
   const eraserPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -26,10 +30,52 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   const { socket, loading } = useSocket();
 
+  // Focus textarea when text editing starts
+  useEffect(() => {
+    if (editingText && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [editingText]);
+
   // Keep shapesRef synchronized for 60fps animation loop
   useEffect(() => {
     shapesRef.current = shapes;
   }, [shapes]);
+
+  // Commit typed text as a new TextShape
+  const commitText = useCallback(() => {
+    if (!editingText) return;
+    const trimmed = editingText.text.trim();
+    if (trimmed.length > 0) {
+      const newTextShape: Shape = {
+        type: 'text',
+        text: trimmed,
+        x: editingText.x,
+        y: editingText.y,
+        fontSize: 24,
+      };
+      setShapes((prev) => [...prev, newTextShape]);
+
+      if (socket) {
+        socket.send(
+          JSON.stringify({
+            type: 'chat',
+            roomId: Number(roomId),
+            message: JSON.stringify(newTextShape),
+          })
+        );
+      }
+    }
+    setEditingText(null);
+  }, [editingText, roomId, socket]);
+
+  // Double click anywhere on canvas to create/type text
+  const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (editingText) {
+      commitText();
+    }
+    setEditingText({ x: e.clientX, y: e.clientY, text: '' });
+  };
 
   const startParticleLoop = useCallback(() => {
     if (animFrameRef.current !== null) return;
@@ -71,9 +117,11 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   const spawnParticles = useCallback((x: number, y: number, count = 4, burst = false) => {
     const colors = [
-      'rgba(244, 114, 182, OPACITY)', // eraser pink
-      'rgba(255, 255, 255, OPACITY)', // chalk white
-      'rgba(165, 180, 252, OPACITY)', // subtle glow
+      'rgba(255, 255, 255, OPACITY)', // pure white
+      'rgba(248, 250, 252, OPACITY)', // soft white
+      'rgba(241, 245, 249, OPACITY)', // chalk white
+      'rgba(226, 232, 240, OPACITY)', // light eraser dust
+      'rgba(203, 213, 225, OPACITY)', // slate dust
     ];
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -133,6 +181,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       draw(canvasRef.current, shapes);
     }
   }, [shapes]);
+
+  // Redraw when custom sketchy web fonts finish loading
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(() => {
+        if (canvasRef.current) {
+          draw(canvasRef.current, shapesRef.current);
+        }
+      });
+    }
+  }, []);
 
   // Handle Undo: remove last shape locally, from DB, from S3 if image, and over WebSocket
   const handleUndo = useCallback(() => {
@@ -371,8 +430,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Mouse down: start drawing or erase
+  // Mouse down: start drawing, erase, or open text tool
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (editingText) {
+      commitText();
+    }
+
+    if (selectedTool === 'text') {
+      setEditingText({ x: e.clientX, y: e.clientY, text: '' });
+      return;
+    }
+
     setIsDrawing(true);
     setStartX(e.clientX);
     setStartY(e.clientY);
@@ -392,7 +460,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   // Mouse move: live preview of shape currently being drawn or continuous erase
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !canvasRef.current) return;
+    if (!isDrawing || !canvasRef.current || selectedTool === 'text') return;
 
     if (selectedTool === 'eraser') {
       eraseAt(e.clientX, e.clientY);
@@ -411,7 +479,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   // Mouse up: finalize shape, update state, and broadcast over WebSocket
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
+    if (!isDrawing || selectedTool === 'text') return;
     setIsDrawing(false);
 
     if (selectedTool === 'eraser') {
@@ -452,6 +520,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   };
 
   const getCursor = () => {
+    if (selectedTool === 'text') {
+      return 'text';
+    }
     if (selectedTool === 'eraser') {
       return "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' style='filter:drop-shadow(0 0 1.5px %23000000);'%3E%3Cpath d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21'/%3E%3Cpath d='M22 21H7'/%3E%3Cpath d='m5 11 9 9'/%3E%3C/svg%3E\") 4 20, pointer";
     }
@@ -474,6 +545,43 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         canUndo={shapes.length > 0}
         onUploadImage={(file) => uploadAndAddImage(file)}
       />
+
+      {editingText && (
+        <textarea
+          ref={textareaRef}
+          value={editingText.text}
+          onChange={(e) => {
+            setEditingText({ ...editingText, text: e.target.value });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              commitText();
+            }
+          }}
+          onBlur={commitText}
+          placeholder="Type text..."
+          rows={Math.max(1, editingText.text.split('\n').length)}
+          style={{
+            position: 'absolute',
+            left: `${editingText.x}px`,
+            top: `${editingText.y}px`,
+            background: 'rgba(23, 23, 28, 0.85)',
+            color: '#ffffff',
+            fontFamily: '"Architects Daughter", "Caveat", "Kalam", "Patrick Hand", "Comic Sans MS", cursive, sans-serif',
+            fontSize: '24px',
+            fontWeight: 600,
+            lineHeight: 1.35,
+            border: '1px dashed #818cf8',
+            borderRadius: '6px',
+            padding: '4px 8px',
+            outline: 'none',
+            resize: 'none',
+            minWidth: '140px',
+            zIndex: 200,
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+          }}
+        />
+      )}
 
       {isUploading && (
         <div
@@ -507,6 +615,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onDoubleClick={handleDoubleClick}
         style={{
           backgroundColor: '#121212',
           cursor: getCursor(),

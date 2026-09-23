@@ -1,4 +1,4 @@
-export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow' | 'eraser';
+export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow' | 'text' | 'eraser';
 
 export type PencilShape = {
   id?: number;
@@ -50,6 +50,15 @@ export type ArrowShape = {
   endY: number;
 };
 
+export type TextShape = {
+  id?: number;
+  type: 'text';
+  text: string;
+  x: number;
+  y: number;
+  fontSize?: number;
+};
+
 export type ImageShape = {
   id?: number;
   type: 'image';
@@ -67,7 +76,9 @@ export type Shape =
   | DiamondShape
   | LineShape
   | ArrowShape
+  | TextShape
   | ImageShape;
+
 
 
 

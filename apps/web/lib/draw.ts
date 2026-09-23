@@ -114,6 +114,18 @@ export function draw(
         stroke: "#ffffff",
         strokeWidth: 2,
       });
+    } else if (shape.type === "text") {
+      ctx.save();
+      const fontSize = shape.fontSize || 24;
+      ctx.font = `600 ${fontSize}px "Architects Daughter", "Caveat", "Kalam", "Patrick Hand", "Comic Sans MS", cursive, sans-serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.textBaseline = "top";
+      const lines = shape.text.split("\n");
+      const lineHeight = fontSize * 1.35;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, shape.x, shape.y + index * lineHeight);
+      });
+      ctx.restore();
     }
   });
 
@@ -140,9 +152,9 @@ export function draw(
       eraserHalo.y,
       22
     );
-    grad.addColorStop(0, 'rgba(244, 114, 182, 0.4)');
-    grad.addColorStop(0.6, 'rgba(244, 114, 182, 0.15)');
-    grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.32)');
+    grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.12)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
     ctx.fillStyle = grad;
     ctx.beginPath();

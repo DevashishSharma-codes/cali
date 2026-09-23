@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { Tool } from '../lib/types';
-import { Pencil, Square, Circle, Diamond, Minus, MoveRight, Eraser, Undo2, Image as ImageIcon } from 'lucide-react';
+import { Pencil, Square, Circle, Diamond, Minus, MoveRight, Eraser, Undo2, Image as ImageIcon, Type } from 'lucide-react';
 
 interface ToolbarProps {
   selectedTool: Tool;
@@ -28,6 +28,7 @@ export function Toolbar({
     { type: 'diamond', label: 'Diamond', icon: <Diamond size={18} /> },
     { type: 'line', label: 'Line', icon: <Minus size={18} /> },
     { type: 'arrow', label: 'Arrow', icon: <MoveRight size={18} /> },
+    { type: 'text', label: 'Text', icon: <Type size={18} /> },
     { type: 'eraser', label: 'Eraser', icon: <Eraser size={18} /> },
   ];
 
