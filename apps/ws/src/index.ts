@@ -103,12 +103,45 @@ wss.on('connection', (ws, request) => {
                 });
                 console.log("Chat saved to DB successfully:", chat);
 
+                let outboundMessage = messageText;
+                try {
+                    const parsedShape = JSON.parse(messageText);
+                    parsedShape.id = chat.id;
+                    outboundMessage = JSON.stringify(parsedShape);
+                } catch (err) {}
+
                 users.forEach(u => {
                     if (u.rooms.includes(roomId.toString())) {
                         u.ws.send(JSON.stringify({
                             type: "chat",
-                            message: messageText,
+                            message: outboundMessage,
                             userId,
+                            roomId,
+                            id: chat.id
+                        }));
+                    }
+                });
+            }
+
+            if (parsedMessage.type === "delete_shape") {
+                const roomId = parsedMessage.roomId;
+                const shapeId = Number(parsedMessage.shapeId);
+                if (!isNaN(shapeId)) {
+                    try {
+                        await prismaClient.chat.delete({
+                            where: { id: shapeId }
+                        });
+                        console.log(`Deleted chat/shape ${shapeId} from DB`);
+                    } catch (e) {
+                        console.error(`Failed to delete chat ${shapeId} from DB:`, e);
+                    }
+                }
+
+                users.forEach(u => {
+                    if (roomId && u.rooms.includes(roomId.toString())) {
+                        u.ws.send(JSON.stringify({
+                            type: "delete_shape",
+                            shapeId: parsedMessage.shapeId,
                             roomId
                         }));
                     }

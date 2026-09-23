@@ -1,14 +1,16 @@
 'use client';
 
 import { Tool } from '../lib/types';
-import { Pencil, Square, Circle, Diamond, Minus, MoveRight } from 'lucide-react';
+import { Pencil, Square, Circle, Diamond, Minus, MoveRight, Eraser, Undo2 } from 'lucide-react';
 
 interface ToolbarProps {
   selectedTool: Tool;
   setSelectedTool: (tool: Tool) => void;
+  onUndo?: () => void;
+  canUndo?: boolean;
 }
 
-export function Toolbar({ selectedTool, setSelectedTool }: ToolbarProps) {
+export function Toolbar({ selectedTool, setSelectedTool, onUndo, canUndo = true }: ToolbarProps) {
   const tools: { type: Tool; label: string; icon: React.ReactNode }[] = [
     { type: 'pencil', label: 'Pencil', icon: <Pencil size={18} /> },
     { type: 'rect', label: 'Rectangle', icon: <Square size={18} /> },
@@ -16,6 +18,7 @@ export function Toolbar({ selectedTool, setSelectedTool }: ToolbarProps) {
     { type: 'diamond', label: 'Diamond', icon: <Diamond size={18} /> },
     { type: 'line', label: 'Line', icon: <Minus size={18} /> },
     { type: 'arrow', label: 'Arrow', icon: <MoveRight size={18} /> },
+    { type: 'eraser', label: 'Eraser', icon: <Eraser size={18} /> },
   ];
 
   return (
@@ -74,6 +77,51 @@ export function Toolbar({ selectedTool, setSelectedTool }: ToolbarProps) {
           </button>
         );
       })}
+
+      {onUndo && (
+        <>
+          <div
+            style={{
+              width: '1px',
+              height: '20px',
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              margin: '0 2px',
+            }}
+          />
+          <button
+            title="Undo (Ctrl+Z / ⌘Z)"
+            onClick={onUndo}
+            disabled={!canUndo}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: canUndo ? '#94a3b8' : 'rgba(148, 163, 184, 0.35)',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              transition: 'background-color 0.15s, color 0.15s, transform 0.1s',
+            }}
+            onMouseEnter={(e) => {
+              if (canUndo) {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.color = '#ffffff';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (canUndo) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#94a3b8';
+              }
+            }}
+          >
+            <Undo2 size={18} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

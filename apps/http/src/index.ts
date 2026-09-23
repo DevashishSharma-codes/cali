@@ -158,6 +158,23 @@ app.get("/chats/:roomId", async (req, res) => {
     res.json({ messages });
 });
 
+app.delete("/chats/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid chat id" });
+    }
+
+    try {
+        await prismaClient.chat.delete({
+            where: {
+                id: id
+            }
+        });
+        res.json({ message: "Chat deleted successfully" });
+    } catch (e) {
+        res.status(500).json({ message: "Error deleting chat" });
+    }
+});
 
 app.listen(3001, () => {
     console.log('HTTP server is running on http://localhost:3001');

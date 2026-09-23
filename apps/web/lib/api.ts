@@ -14,7 +14,7 @@ export async function getExistingShapes(roomId: string | number): Promise<Shape[
   // In the DB, chats are ordered newest first (desc), so reverse to draw chronologically
   const chronologicalMessages = [...messages].reverse();
 
-  chronologicalMessages.forEach((msg: { message: string }) => {
+  chronologicalMessages.forEach((msg: { id: number; message: string }) => {
     try {
       const shapeData = JSON.parse(msg.message);
       if (
@@ -26,7 +26,10 @@ export async function getExistingShapes(roomId: string | number): Promise<Shape[
           shapeData.type === "line" ||
           shapeData.type === "arrow")
       ) {
-        shapes.push(shapeData);
+        shapes.push({
+          ...shapeData,
+          id: shapeData.id ?? msg.id,
+        });
       }
     } catch (e) {
       // Skip invalid JSON
@@ -34,4 +37,16 @@ export async function getExistingShapes(roomId: string | number): Promise<Shape[
   });
 
   return shapes;
+}
+
+export async function deleteShapeApi(shapeId: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${HTTP_URL}/chats/${shapeId}`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("Failed to delete shape via API:", e);
+    return false;
+  }
 }

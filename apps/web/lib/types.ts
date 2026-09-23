@@ -1,11 +1,13 @@
-export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow';
+export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow' | 'eraser';
 
 export type PencilShape = {
+  id?: number;
   type: 'pencil';
   points: { x: number; y: number }[];
 };
 
 export type RectShape = {
+  id?: number;
   type: 'rect';
   x: number;
   y: number;
@@ -14,6 +16,7 @@ export type RectShape = {
 };
 
 export type CircleShape = {
+  id?: number;
   type: 'circle';
   centerX: number;
   centerY: number;
@@ -21,6 +24,7 @@ export type CircleShape = {
 };
 
 export type DiamondShape = {
+  id?: number;
   type: 'diamond';
   x: number;
   y: number;
@@ -29,6 +33,7 @@ export type DiamondShape = {
 };
 
 export type LineShape = {
+  id?: number;
   type: 'line';
   startX: number;
   startY: number;
@@ -37,6 +42,7 @@ export type LineShape = {
 };
 
 export type ArrowShape = {
+  id?: number;
   type: 'arrow';
   startX: number;
   startY: number;
@@ -45,4 +51,5 @@ export type ArrowShape = {
 };
 
 export type Shape = PencilShape | RectShape | CircleShape | DiamondShape | LineShape | ArrowShape;
+
 
