@@ -28,6 +28,7 @@ export interface ShapeStyle {
   strokeStyle?: StrokeStyle;
   roughness?: number;
   opacity?: number; // 0 - 100
+  clientId?: string;
 }
 
 export type PencilShape = ShapeStyle & {

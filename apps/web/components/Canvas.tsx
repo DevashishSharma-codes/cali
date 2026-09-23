@@ -10,6 +10,7 @@ import {
   getCombinedBounds,
   getResizeHandleAt,
   getShapeBounds,
+  isPointInsideBounds,
   isPointNearShape,
   isShapeInBox,
   moveShape,
@@ -22,6 +23,8 @@ import { Toolbar } from './Toolbar';
 import { StyleSidebar } from './StyleSidebar';
 import { ZoomControls } from './ZoomControls';
 import { Loader2 } from 'lucide-react';
+
+const generateClientId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
 export function Canvas({ roomId }: { roomId: string | number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,12 +41,22 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [selectedShapes, setSelectedShapes] = useState<Shape[]>([]);
   const selectedShapesRef = useRef<Shape[]>([]);
   const [isDraggingSelection, setIsDraggingSelection] = useState(false);
-  const dragStartWorldPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isHoveringSelection, setIsHoveringSelection] = useState(false);
+  const draggingStateRef = useRef<{
+    origSelected: Shape[];
+    origShapes: Shape[];
+    selectedIndices: number[];
+    startMouse: { x: number; y: number };
+    hasMoved?: boolean;
+  } | null>(null);
+
   const [isResizing, setIsResizing] = useState(false);
   const resizingStateRef = useRef<{
     handle: ResizeHandle;
     origBounds: Bounds;
     origShapes: Shape[];
+    origAllShapes: Shape[];
+    selectedIndices: number[];
     startMouse: { x: number; y: number };
   } | null>(null);
   const [hoverHandleCursor, setHoverHandleCursor] = useState<string | null>(null);
@@ -92,7 +105,15 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [canvasBackground, setCanvasBackground] = useState<string>('#121212');
 
   // Text tool inline editing
-  const [editingText, setEditingText] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [editingText, setEditingText] = useState<{
+    x: number;
+    y: number;
+    text: string;
+    fontSize?: number;
+    id?: number;
+    clientId?: string;
+    isEditingExisting?: boolean;
+  } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Eraser rubbing effect & particles
@@ -135,20 +156,30 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       if (prop === 'opacity') setOpacity(value);
 
       if (selectedShapesRef.current.length > 0) {
-        const selectedIds = new Set(selectedShapesRef.current.map((s) => s.id ?? s));
+        const selectedIds = new Set(selectedShapesRef.current.map((s) => s.id).filter(Boolean));
+        const selectedClientIds = new Set(selectedShapesRef.current.map((s) => s.clientId).filter(Boolean));
+
         setShapes((prev) => {
           const updated = prev.map((s) => {
-            const isSelected = selectedIds.has(s.id ?? s) || selectedShapesRef.current.includes(s);
+            const isSelected =
+              (s.id && selectedIds.has(s.id)) ||
+              (s.clientId && selectedClientIds.has(s.clientId)) ||
+              selectedShapesRef.current.includes(s);
+
             if (isSelected) {
               const updatedShape = { ...s, [prop]: value };
-              if (socket) {
-                socket.send(
-                  JSON.stringify({
-                    type: 'chat',
-                    roomId: Number(roomId),
-                    message: JSON.stringify(updatedShape),
-                  })
-                );
+              if (updatedShape.id) {
+                updateShapeApi(updatedShape.id, updatedShape);
+                if (socket) {
+                  socket.send(
+                    JSON.stringify({
+                      type: 'update_shape',
+                      roomId: Number(roomId),
+                      shapeId: updatedShape.id,
+                      message: JSON.stringify(updatedShape),
+                    })
+                  );
+                }
               }
               return updatedShape;
             }
@@ -227,24 +258,87 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       if (shape.type === 'image') {
         deleteImageFromSupabase(shape.src);
       }
-      if (shape.id) {
-        deleteShapeApi(shape.id);
+      const shapeId = shape.id;
+      if (shapeId) {
+        deleteShapeApi(shapeId);
         if (socket) {
           socket.send(
             JSON.stringify({
               type: 'delete_shape',
               roomId: Number(roomId),
-              shapeId: shape.id,
+              shapeId,
             })
           );
         }
       }
     });
 
-    setShapes((prev) => prev.filter((s) => !toDelete.includes(s)));
+    const toDeleteIds = new Set(toDelete.map((s) => s.id).filter(Boolean));
+    const toDeleteClientIds = new Set(toDelete.map((s) => s.clientId).filter(Boolean));
+
+    setShapes((prev) =>
+      prev.filter((s) => {
+        if (s.id && toDeleteIds.has(s.id)) return false;
+        if (s.clientId && toDeleteClientIds.has(s.clientId)) return false;
+        return !toDelete.includes(s);
+      })
+    );
   }, [roomId, socket]);
 
-  // Keyboard events: Tool shortcuts, Spacebar pan, Zoom, and Delete
+  // Nudge selected shapes using Arrow Keys (2px normal, 10px with Shift)
+  const nudgeSelectedShapes = useCallback(
+    (dx: number, dy: number) => {
+      if (selectedShapesRef.current.length === 0) return;
+
+      const selectedIds = new Set(selectedShapesRef.current.map((s) => s.id).filter(Boolean));
+      const selectedClientIds = new Set(selectedShapesRef.current.map((s) => s.clientId).filter(Boolean));
+      const movedSelected = selectedShapesRef.current.map((s) => moveShape(s, dx, dy));
+
+      setShapes((prev) => {
+        const next = prev.map((s) => {
+          const isSel =
+            (s.id && selectedIds.has(s.id)) ||
+            (s.clientId && selectedClientIds.has(s.clientId)) ||
+            selectedShapesRef.current.includes(s);
+
+          if (isSel) {
+            const idx = selectedShapesRef.current.findIndex(
+              (sel) => (sel.id && sel.id === s.id) || (sel.clientId && sel.clientId === s.clientId) || sel === s
+            );
+            return idx !== -1 && movedSelected[idx] ? movedSelected[idx]! : moveShape(s, dx, dy);
+          }
+          return s;
+        });
+        return next;
+      });
+
+      setSelectedShapes(movedSelected);
+
+      // Sync moved shapes to DB and WebSocket peers
+      movedSelected.forEach((shape) => {
+        const currentShape = shapesRef.current.find(
+          (s) => (shape.id && s.id === shape.id) || (shape.clientId && s.clientId === shape.clientId)
+        );
+        const shapeId = shape.id || currentShape?.id;
+        if (shapeId) {
+          updateShapeApi(shapeId, shape);
+          if (socket) {
+            socket.send(
+              JSON.stringify({
+                type: 'update_shape',
+                roomId: Number(roomId),
+                shapeId,
+                message: JSON.stringify({ ...shape, id: shapeId }),
+              })
+            );
+          }
+        }
+      });
+    },
+    [roomId, socket]
+  );
+
+  // Keyboard events: Tool shortcuts, Spacebar pan, Zoom, Delete, Arrow Nudge, and Escape Deselect
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInput = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
@@ -254,6 +348,24 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         e.preventDefault();
         setIsSpacePressed(true);
         return;
+      }
+
+      if (e.key === 'Escape') {
+        if (selectedShapesRef.current.length > 0) {
+          setSelectedShapes([]);
+        }
+        return;
+      }
+
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        if (selectedShapesRef.current.length > 0) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 2;
+          const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+          const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+          nudgeSelectedShapes(dx, dy);
+          return;
+        }
       }
 
       if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -298,7 +410,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [deleteSelectedShapes, handleZoomIn, handleZoomOut, handleResetZoom]);
+  }, [deleteSelectedShapes, handleZoomIn, handleZoomOut, handleResetZoom, nudgeSelectedShapes]);
 
   // Non-passive wheel event listener for 2-finger trackpad swipe, mouse scroll pan, and pinch zoom
   useEffect(() => {
@@ -342,19 +454,80 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   }, [editingText]);
 
-  // Commit typed text as a new TextShape in world coordinates
+  // Commit typed text (creates a new text shape or updates existing text shape)
   const commitText = useCallback(() => {
     if (!editingText) return;
     const trimmed = editingText.text.trim();
-    if (trimmed.length > 0) {
+
+    if (editingText.isEditingExisting) {
+      const existingId = editingText.id;
+      const existingClientId = editingText.clientId;
+
+      if (trimmed.length > 0) {
+        // Update existing text shape in place
+        setShapes((prev) =>
+          prev.map((s) => {
+            const isMatch =
+              (existingId && s.id === existingId) ||
+              (existingClientId && s.clientId === existingClientId);
+            if (isMatch && s.type === 'text') {
+              const updated: Shape = {
+                ...s,
+                text: trimmed,
+                fontSize: editingText.fontSize || s.fontSize || 24,
+              };
+              if (updated.id) {
+                updateShapeApi(updated.id, updated);
+                if (socket) {
+                  socket.send(
+                    JSON.stringify({
+                      type: 'update_shape',
+                      roomId: Number(roomId),
+                      shapeId: updated.id,
+                      message: JSON.stringify(updated),
+                    })
+                  );
+                }
+              }
+              return updated;
+            }
+            return s;
+          })
+        );
+      } else {
+        // If text was cleared to empty, delete the shape
+        if (existingId) {
+          deleteShapeApi(existingId);
+          if (socket) {
+            socket.send(
+              JSON.stringify({
+                type: 'delete_shape',
+                roomId: Number(roomId),
+                shapeId: existingId,
+              })
+            );
+          }
+        }
+        setShapes((prev) =>
+          prev.filter((s) => {
+            if (existingId && s.id === existingId) return false;
+            if (existingClientId && s.clientId === existingClientId) return false;
+            return true;
+          })
+        );
+      }
+    } else if (trimmed.length > 0) {
+      // Create new text shape
+      const clientId = generateClientId();
       const newTextShape: Shape = {
         type: 'text',
         text: trimmed,
         x: editingText.x,
         y: editingText.y,
-        fontSize: 24,
+        fontSize: editingText.fontSize || 24,
         strokeColor,
         opacity,
+        clientId,
       };
       setShapes((prev) => [...prev, newTextShape]);
 
@@ -368,17 +541,43 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         );
       }
     }
+
     setEditingText(null);
   }, [editingText, roomId, socket, strokeColor, opacity]);
 
-  // Double click anywhere on canvas to create/type text
+  // Double click anywhere on canvas to edit existing text or create new text
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (selectedTool === 'hand' || isSpacePressed) return;
     if (editingText) {
       commitText();
     }
     const worldPos = screenToWorld(e.clientX, e.clientY);
-    setEditingText({ x: worldPos.x, y: worldPos.y, text: '' });
+
+    // Check if double-clicked on an existing text shape
+    const hitTextShape = [...shapes]
+      .reverse()
+      .find((s) => s.type === 'text' && isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+
+    if (hitTextShape && hitTextShape.type === 'text') {
+      setEditingText({
+        x: hitTextShape.x,
+        y: hitTextShape.y,
+        text: hitTextShape.text,
+        fontSize: hitTextShape.fontSize || 24,
+        id: hitTextShape.id,
+        clientId: hitTextShape.clientId,
+        isEditingExisting: true,
+      });
+      setSelectedShapes([]);
+    } else {
+      setEditingText({
+        x: worldPos.x,
+        y: worldPos.y,
+        text: '',
+        fontSize: 24,
+        isEditingExisting: false,
+      });
+    }
   };
 
   const startParticleLoop = useCallback(() => {
@@ -469,19 +668,46 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'chat') {
-            const newShape = JSON.parse(data.message);
-            if (data.id && !newShape.id) {
-              newShape.id = data.id;
+            const newShape: Shape = JSON.parse(data.message);
+            const dbId = data.id ? Number(data.id) : newShape.id;
+            if (dbId) {
+              newShape.id = dbId;
             }
+
             setShapes((prev) => {
-              const existingIdx = prev.findIndex((s) => s.id && s.id === newShape.id);
-              if (existingIdx !== -1) {
-                const next = [...prev];
-                next[existingIdx] = newShape;
-                return next;
+              // 1. Check if shape already exists by DB id
+              if (dbId) {
+                const idxById = prev.findIndex((s) => s.id === dbId);
+                if (idxById !== -1) {
+                  const next = [...prev];
+                  next[idxById] = { ...next[idxById], ...newShape, id: dbId };
+                  return next;
+                }
               }
+
+              // 2. Check if shape already exists by clientId (e.g. created locally before DB response)
+              if (newShape.clientId) {
+                const idxByClient = prev.findIndex((s) => s.clientId === newShape.clientId);
+                if (idxByClient !== -1) {
+                  const next = [...prev];
+                  next[idxByClient] = { ...next[idxByClient], ...newShape, id: dbId ?? next[idxByClient]?.id };
+                  return next;
+                }
+              }
+
               return [...prev, newShape];
             });
+
+            // Keep selected shapes synchronized with DB id
+            if (dbId) {
+              setSelectedShapes((prev) =>
+                prev.map((s) =>
+                  (s.id === dbId || (newShape.clientId && s.clientId === newShape.clientId))
+                    ? { ...s, ...newShape, id: dbId }
+                    : s
+                )
+              );
+            }
           } else if (data.type === 'update_shape') {
             const updatedShape = JSON.parse(data.message);
             const updatedId = Number(data.shapeId);
@@ -506,9 +732,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (canvasRef.current) {
       canvasRef.current.width = window.innerWidth;
       canvasRef.current.height = window.innerHeight;
+      const shapesToDraw = editingText?.isEditingExisting
+        ? shapes.filter((s) => {
+            if (editingText.id && s.id === editingText.id) return false;
+            if (editingText.clientId && s.clientId === editingText.clientId) return false;
+            return true;
+          })
+        : shapes;
+
       draw(
         canvasRef.current,
-        shapes,
+        shapesToDraw,
         undefined,
         undefined,
         undefined,
@@ -520,16 +754,24 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         marqueeBox
       );
     }
-  }, [shapes, canvasBackground, panX, panY, zoom, selectedShapes, marqueeBox]);
+  }, [shapes, canvasBackground, panX, panY, zoom, selectedShapes, marqueeBox, editingText]);
 
   // Redraw when custom sketchy web fonts finish loading
   useEffect(() => {
     if (typeof document !== 'undefined' && document.fonts) {
       document.fonts.ready.then(() => {
         if (canvasRef.current) {
+          const shapesToDraw = editingText?.isEditingExisting
+            ? shapesRef.current.filter((s) => {
+                if (editingText.id && s.id === editingText.id) return false;
+                if (editingText.clientId && s.clientId === editingText.clientId) return false;
+                return true;
+              })
+            : shapesRef.current;
+
           draw(
             canvasRef.current,
-            shapesRef.current,
+            shapesToDraw,
             undefined,
             undefined,
             undefined,
@@ -543,7 +785,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         }
       });
     }
-  }, [canvasBackground, marqueeBox]);
+  }, [canvasBackground, marqueeBox, editingText]);
 
   // Handle Undo: remove last shape locally, from DB, from S3 if image, and over WebSocket
   const handleUndo = useCallback(() => {
@@ -602,6 +844,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           const targetScreenY = screenY !== undefined ? screenY : Math.max(60, Math.round((window.innerHeight - height) / 2));
           const worldPos = screenToWorld(targetScreenX, targetScreenY);
 
+          const clientId = generateClientId();
           const localImageShape: Shape = {
             type: 'image',
             src: localUrl,
@@ -610,6 +853,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             width,
             height,
             opacity,
+            clientId,
           };
 
           // 1. Instantly display image on canvas
@@ -735,7 +979,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   );
 
   // Helper to construct a shape object from world coordinates and current styles
-  const createShape = (tool: Tool, x1: number, y1: number, x2: number, y2: number): Shape => {
+  const createShape = (tool: Tool, x1: number, y1: number, x2: number, y2: number, clientId?: string): Shape => {
     const commonStyle = {
       strokeColor,
       backgroundColor,
@@ -744,6 +988,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       strokeStyle,
       roughness,
       opacity,
+      clientId: clientId || generateClientId(),
     };
 
     if (tool === 'pencil') {
@@ -844,29 +1089,87 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
         if (handleHit) {
           setIsResizing(true);
+          const selectedIndices: number[] = [];
+          shapes.forEach((s, idx) => {
+            if (
+              selectedShapes.some(
+                (sel) =>
+                  (sel.id && sel.id === s.id) ||
+                  (sel.clientId && sel.clientId === s.clientId) ||
+                  sel === s
+              )
+            ) {
+              selectedIndices.push(idx);
+            }
+          });
           resizingStateRef.current = {
             handle: handleHit.handle,
             origBounds: activeBounds,
             origShapes: selectedShapes.map((s) => JSON.parse(JSON.stringify(s))),
+            origAllShapes: shapes.map((s) => JSON.parse(JSON.stringify(s))),
+            selectedIndices,
             startMouse: worldPos,
+          };
+          return;
+        }
+
+        // 2. Check if clicking inside active selection bounding box or on any selected shape
+        const isInsideSelection = isPointInsideBounds(worldPos.x, worldPos.y, activeBounds, 6 / zoom);
+        const isNearSelectedShape = selectedShapes.some((s) => isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+
+        if (!e.shiftKey && (isInsideSelection || isNearSelectedShape)) {
+          setIsDraggingSelection(true);
+          const selectedIndices: number[] = [];
+          shapes.forEach((s, idx) => {
+            if (
+              selectedShapes.some(
+                (sel) =>
+                  (sel.id && sel.id === s.id) ||
+                  (sel.clientId && sel.clientId === s.clientId) ||
+                  sel === s
+              )
+            ) {
+              selectedIndices.push(idx);
+            }
+          });
+          draggingStateRef.current = {
+            origSelected: selectedShapes.map((s) => JSON.parse(JSON.stringify(s))),
+            origShapes: shapes.map((s) => JSON.parse(JSON.stringify(s))),
+            selectedIndices,
+            startMouse: worldPos,
+            hasMoved: false,
           };
           return;
         }
       }
 
-      // 2. Find top-most shape under cursor (iterating from newest to oldest)
-      const hitShape = [...shapes].reverse().find((s) => isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+      // 3. Find top-most shape under cursor (iterating from newest to oldest)
+      let hitShapeIdx = -1;
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        const s = shapes[i];
+        if (s && isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom)) {
+          hitShapeIdx = i;
+          break;
+        }
+      }
 
-      if (hitShape) {
-        const isAlreadySelected = selectedShapes.includes(hitShape);
+      if (hitShapeIdx !== -1) {
+        const hitShape = shapes[hitShapeIdx]!;
+        const isAlreadySelected = selectedShapes.some(
+          (s) => (s.id && s.id === hitShape.id) || (s.clientId && s.clientId === hitShape.clientId) || s === hitShape
+        );
         if (e.shiftKey) {
           // Toggle selection
-          setSelectedShapes((prev) =>
-            isAlreadySelected ? prev.filter((s) => s !== hitShape) : [...prev, hitShape]
-          );
-        } else if (!isAlreadySelected) {
+          const nextSelected = isAlreadySelected
+            ? selectedShapes.filter(
+                (s) => (s.id ? s.id !== hitShape.id : s.clientId ? s.clientId !== hitShape.clientId : s !== hitShape)
+              )
+            : [...selectedShapes, hitShape];
+          setSelectedShapes(nextSelected);
+        } else {
           // Select clicked shape exclusively and load its style into the sidebar
-          setSelectedShapes([hitShape]);
+          const newSelected = [hitShape];
+          setSelectedShapes(newSelected);
           if (hitShape.strokeColor) setStrokeColor(hitShape.strokeColor);
           if (hitShape.backgroundColor !== undefined) setBackgroundColor(hitShape.backgroundColor);
           if (hitShape.fillStyle) setFillStyle(hitShape.fillStyle);
@@ -874,11 +1177,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           if (hitShape.strokeStyle) setStrokeStyle(hitShape.strokeStyle);
           if (hitShape.roughness !== undefined) setRoughness(hitShape.roughness);
           if (hitShape.opacity !== undefined) setOpacity(hitShape.opacity);
-        }
 
-        // Start dragging selection group
-        setIsDraggingSelection(true);
-        dragStartWorldPos.current = worldPos;
+          // Start dragging immediately so user can single-click-drag any shape seamlessly
+          setIsDraggingSelection(true);
+          draggingStateRef.current = {
+            origSelected: [JSON.parse(JSON.stringify(hitShape))],
+            origShapes: shapes.map((s) => JSON.parse(JSON.stringify(s))),
+            selectedIndices: [hitShapeIdx],
+            startMouse: worldPos,
+            hasMoved: false,
+          };
+        }
       } else {
         // Clicked on empty space: clear selection unless Shift is held
         if (!e.shiftKey) {
@@ -896,7 +1205,30 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
 
     if (selectedTool === 'text') {
-      setEditingText({ x: worldPos.x, y: worldPos.y, text: '' });
+      const hitTextShape = [...shapes]
+        .reverse()
+        .find((s) => s.type === 'text' && isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+
+      if (hitTextShape && hitTextShape.type === 'text') {
+        setEditingText({
+          x: hitTextShape.x,
+          y: hitTextShape.y,
+          text: hitTextShape.text,
+          fontSize: hitTextShape.fontSize || 24,
+          id: hitTextShape.id,
+          clientId: hitTextShape.clientId,
+          isEditingExisting: true,
+        });
+        setSelectedShapes([]);
+      } else {
+        setEditingText({
+          x: worldPos.x,
+          y: worldPos.y,
+          text: '',
+          fontSize: 24,
+          isEditingExisting: false,
+        });
+      }
       return;
     }
 
@@ -953,7 +1285,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (selectedTool === 'select') {
       // 1. Resizing active shapes
       if (isResizing && resizingStateRef.current) {
-        const { handle, origBounds, origShapes } = resizingStateRef.current;
+        const { handle, origBounds, origShapes, origAllShapes, selectedIndices } = resizingStateRef.current;
         const newBounds = calculateNewBounds(
           origBounds,
           handle,
@@ -962,21 +1294,28 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           e.shiftKey
         );
 
-        const updatedSelected = selectedShapes.map((s, idx) => {
-          const origS = origShapes[idx] || s;
-          return resizeShape(s, origS, origBounds, newBounds, handle, worldPos.x, worldPos.y);
-        });
+        const nextShapes = [...origAllShapes];
+        const nextSelected: Shape[] = [];
 
-        const nextShapes = shapes.map((s) => {
-          const selIdx = selectedShapes.findIndex((sel) => (sel.id && sel.id === s.id) || sel === s);
-          if (selIdx !== -1 && updatedSelected[selIdx]) {
-            return updatedSelected[selIdx]!;
+        selectedIndices.forEach((shapeIdx, idx) => {
+          const origS = origShapes[idx];
+          if (origS && nextShapes[shapeIdx]) {
+            const resized = resizeShape(
+              nextShapes[shapeIdx]!,
+              origS,
+              origBounds,
+              newBounds,
+              handle,
+              worldPos.x,
+              worldPos.y
+            );
+            nextShapes[shapeIdx] = resized;
+            nextSelected.push(resized);
           }
-          return s;
         });
 
         setShapes(nextShapes);
-        setSelectedShapes(updatedSelected);
+        setSelectedShapes(nextSelected);
 
         if (canvasRef.current) {
           draw(
@@ -989,22 +1328,32 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             panX,
             panY,
             zoom,
-            updatedSelected,
+            nextSelected,
             marqueeBox
           );
         }
         return;
       }
 
-      // 2. Dragging selected shapes
-      if (isDraggingSelection && selectedShapes.length > 0) {
-        const dx = worldPos.x - dragStartWorldPos.current.x;
-        const dy = worldPos.y - dragStartWorldPos.current.y;
-        dragStartWorldPos.current = worldPos;
+      // 2. Dragging selected shapes across canvas
+      if (isDraggingSelection && draggingStateRef.current) {
+        const totalDx = worldPos.x - draggingStateRef.current.startMouse.x;
+        const totalDy = worldPos.y - draggingStateRef.current.startMouse.y;
+        if (Math.abs(totalDx) > 1 || Math.abs(totalDy) > 1) {
+          draggingStateRef.current.hasMoved = true;
+        }
 
-        const selectedSet = new Set(selectedShapes);
-        const nextShapes = shapes.map((s) => (selectedSet.has(s) ? moveShape(s, dx, dy) : s));
-        const nextSelected = selectedShapes.map((s) => moveShape(s, dx, dy));
+        const nextShapes = [...draggingStateRef.current.origShapes];
+        const nextSelected: Shape[] = [];
+
+        draggingStateRef.current.selectedIndices.forEach((shapeIdx) => {
+          const origS = draggingStateRef.current!.origShapes[shapeIdx];
+          if (origS) {
+            const moved = moveShape(origS, totalDx, totalDy);
+            nextShapes[shapeIdx] = moved;
+            nextSelected.push(moved);
+          }
+        });
 
         setShapes(nextShapes);
         setSelectedShapes(nextSelected);
@@ -1048,7 +1397,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         return;
       }
 
-      // 4. Hover handle cursor detection when idle
+      // 4. Hover state & handle cursor detection when idle
       if (selectedShapes.length > 0) {
         const activeBounds =
           selectedShapes.length === 1
@@ -1065,9 +1414,21 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           isSingleLine,
           selectedShapes[0]
         );
-        setHoverHandleCursor(handleHit ? handleHit.cursor : null);
+
+        if (handleHit) {
+          setHoverHandleCursor(handleHit.cursor);
+          setIsHoveringSelection(false);
+        } else {
+          setHoverHandleCursor(null);
+          const isInsideSelection = isPointInsideBounds(worldPos.x, worldPos.y, activeBounds, 6 / zoom);
+          const isNearSelectedShape = selectedShapes.some((s) => isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+          setIsHoveringSelection(isInsideSelection || isNearSelectedShape);
+        }
       } else {
         setHoverHandleCursor(null);
+        // Check if hovering over any shape
+        const isOverAnyShape = shapes.some((s) => isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+        setIsHoveringSelection(isOverAnyShape);
       }
       return;
     }
@@ -1128,22 +1489,27 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (selectedTool === 'select') {
       if (isResizing) {
         setIsResizing(false);
+        const finalSelected = selectedShapesRef.current;
         resizingStateRef.current = null;
         // Sync resized shapes to backend and peers
-        if (selectedShapes.length > 0) {
-          selectedShapes.forEach((shape) => {
-            if (shape.id) {
-              updateShapeApi(shape.id, shape);
-            }
-            if (socket) {
-              socket.send(
-                JSON.stringify({
-                  type: shape.id ? 'update_shape' : 'chat',
-                  roomId: Number(roomId),
-                  shapeId: shape.id,
-                  message: JSON.stringify(shape),
-                })
-              );
+        if (finalSelected.length > 0) {
+          finalSelected.forEach((shape) => {
+            const currentShape = shapesRef.current.find(
+              (s) => (shape.id && s.id === shape.id) || (shape.clientId && s.clientId === shape.clientId)
+            );
+            const shapeId = shape.id || currentShape?.id;
+            if (shapeId) {
+              updateShapeApi(shapeId, shape);
+              if (socket) {
+                socket.send(
+                  JSON.stringify({
+                    type: 'update_shape',
+                    roomId: Number(roomId),
+                    shapeId,
+                    message: JSON.stringify({ ...shape, id: shapeId }),
+                  })
+                );
+              }
             }
           });
         }
@@ -1151,21 +1517,29 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
       if (isDraggingSelection) {
         setIsDraggingSelection(false);
-        // Sync moved shapes to backend and peers
-        if (selectedShapes.length > 0) {
-          selectedShapes.forEach((shape) => {
-            if (shape.id) {
-              updateShapeApi(shape.id, shape);
-            }
-            if (socket) {
-              socket.send(
-                JSON.stringify({
-                  type: shape.id ? 'update_shape' : 'chat',
-                  roomId: Number(roomId),
-                  shapeId: shape.id,
-                  message: JSON.stringify(shape),
-                })
-              );
+        const hadMoved = draggingStateRef.current?.hasMoved;
+        const finalSelected = selectedShapesRef.current;
+        draggingStateRef.current = null;
+
+        // Sync moved shapes to backend and peers if position changed
+        if (hadMoved && finalSelected.length > 0) {
+          finalSelected.forEach((shape) => {
+            const currentShape = shapesRef.current.find(
+              (s) => (shape.id && s.id === shape.id) || (shape.clientId && s.clientId === shape.clientId)
+            );
+            const shapeId = shape.id || currentShape?.id;
+            if (shapeId) {
+              updateShapeApi(shapeId, shape);
+              if (socket) {
+                socket.send(
+                  JSON.stringify({
+                    type: 'update_shape',
+                    roomId: Number(roomId),
+                    shapeId,
+                    message: JSON.stringify({ ...shape, id: shapeId }),
+                  })
+                );
+              }
             }
           });
         }
@@ -1187,6 +1561,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
 
     const worldPos = screenToWorld(e.clientX, e.clientY);
+    const clientId = generateClientId();
     let newShape: Shape;
     if (selectedTool === 'pencil') {
       newShape = {
@@ -1197,10 +1572,11 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         roughness,
         opacity,
         strokeStyle,
+        clientId,
       };
       pencilPointsRef.current = [];
     } else {
-      newShape = createShape(selectedTool, startX, startY, worldPos.x, worldPos.y);
+      newShape = createShape(selectedTool, startX, startY, worldPos.x, worldPos.y, clientId);
     }
 
     setShapes((prev) => [...prev, newShape]);
@@ -1226,11 +1602,13 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
     if (isDraggingSelection) {
       setIsDraggingSelection(false);
+      draggingStateRef.current = null;
     }
     if (marqueeBox) {
       setMarqueeBox(null);
     }
     setHoverHandleCursor(null);
+    setIsHoveringSelection(false);
     if (selectedTool === 'eraser') {
       eraserPosRef.current = null;
       startParticleLoop();
@@ -1251,7 +1629,13 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       if (hoverHandleCursor) {
         return hoverHandleCursor;
       }
-      return isDraggingSelection ? 'grabbing' : 'default';
+      if (isDraggingSelection) {
+        return 'grabbing';
+      }
+      if (isHoveringSelection) {
+        return 'grab';
+      }
+      return 'default';
     }
     if (selectedTool === 'text') {
       return 'text';
@@ -1392,7 +1776,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             background: 'rgba(23, 23, 28, 0.85)',
             color: strokeColor || '#ffffff',
             fontFamily: '"Architects Daughter", "Caveat", "Kalam", "Patrick Hand", "Comic Sans MS", cursive, sans-serif',
-            fontSize: '24px',
+            fontSize: `${editingText.fontSize || 24}px`,
             fontWeight: 600,
             lineHeight: 1.35,
             border: '1px dashed #cae39f',

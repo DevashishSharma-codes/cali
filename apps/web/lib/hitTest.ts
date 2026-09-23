@@ -69,6 +69,18 @@ export function isPointNearShape(px: number, py: number, shape: Shape, threshold
         return true;
       }
     }
+    // Also check if clicking inside the compact bounding box of the sketch
+    const bounds = getShapeBounds(shape);
+    if (
+      bounds.width <= 40 &&
+      bounds.height <= 40 &&
+      px >= bounds.minX - threshold &&
+      px <= bounds.maxX + threshold &&
+      py >= bounds.minY - threshold &&
+      py <= bounds.maxY + threshold
+    ) {
+      return true;
+    }
     return false;
   }
 
@@ -78,15 +90,12 @@ export function isPointNearShape(px: number, py: number, shape: Shape, threshold
     const minY = Math.min(shape.y, shape.y + shape.height);
     const maxY = Math.max(shape.y, shape.y + shape.height);
 
-    if (
+    return (
       px >= minX - threshold &&
       px <= maxX + threshold &&
       py >= minY - threshold &&
       py <= maxY + threshold
-    ) {
-      return true;
-    }
-    return false;
+    );
   }
 
   if (shape.type === "circle") {
@@ -145,15 +154,12 @@ export function isPointNearShape(px: number, py: number, shape: Shape, threshold
     const minY = Math.min(shape.y, shape.y + shape.height);
     const maxY = Math.max(shape.y, shape.y + shape.height);
 
-    if (
+    return (
       px >= minX - threshold &&
       px <= maxX + threshold &&
       py >= minY - threshold &&
       py <= maxY + threshold
-    ) {
-      return true;
-    }
-    return false;
+    );
   }
 
   if (shape.type === "text") {
@@ -163,15 +169,12 @@ export function isPointNearShape(px: number, py: number, shape: Shape, threshold
     const width = maxLineLen * (fontSize * 0.65);
     const height = lines.length * (fontSize * 1.35);
 
-    if (
+    return (
       px >= shape.x - threshold &&
       px <= shape.x + width + threshold &&
       py >= shape.y - threshold &&
       py <= shape.y + height + threshold
-    ) {
-      return true;
-    }
-    return false;
+    );
   }
 
   return false;
@@ -278,6 +281,20 @@ export function getSelectionHandles(
   ];
 }
 
+export function isPointInsideBounds(
+  px: number,
+  py: number,
+  bounds: Bounds,
+  pad = 0
+): boolean {
+  return (
+    px >= bounds.minX - pad &&
+    px <= bounds.maxX + pad &&
+    py >= bounds.minY - pad &&
+    py <= bounds.maxY + pad
+  );
+}
+
 export function getResizeHandleAt(
   px: number,
   py: number,
@@ -286,7 +303,16 @@ export function getResizeHandleAt(
   isSingleLineOrArrow?: boolean,
   lineShape?: Shape
 ): HandlePosition | null {
-  const handles = getSelectionHandles(bounds, isSingleLineOrArrow, lineShape);
+  const pad = 6 / zoom;
+  const paddedBounds: Bounds = {
+    minX: bounds.minX - pad,
+    minY: bounds.minY - pad,
+    maxX: bounds.maxX + pad,
+    maxY: bounds.maxY + pad,
+    width: bounds.width + pad * 2,
+    height: bounds.height + pad * 2,
+  };
+  const handles = getSelectionHandles(paddedBounds, isSingleLineOrArrow, lineShape);
   const threshold = 10 / zoom;
 
   for (const h of handles) {
