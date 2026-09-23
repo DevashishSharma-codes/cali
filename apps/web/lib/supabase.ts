@@ -8,6 +8,15 @@ const supabaseKey =
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+export function fileToDataUrl(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function uploadImageToSupabase(file: File | Blob): Promise<string | null> {
   try {
     const fileExt = file instanceof File && file.name ? file.name.split('.').pop() : 'png';
@@ -23,8 +32,9 @@ export async function uploadImageToSupabase(file: File | Blob): Promise<string |
       });
 
     if (error) {
-      console.error('Error uploading image to Supabase:', error);
-      return null;
+      console.warn('Supabase storage upload failed (check RLS policies on bucket "cali"):', error.message);
+      // Fallback to data URL so the user can continue drawing without blockage
+      return await fileToDataUrl(file);
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -33,7 +43,11 @@ export async function uploadImageToSupabase(file: File | Blob): Promise<string |
 
     return publicUrlData.publicUrl;
   } catch (err) {
-    console.error('Unexpected error uploading image:', err);
-    return null;
+    console.error('Unexpected error uploading image, falling back to local data URL:', err);
+    try {
+      return await fileToDataUrl(file);
+    } catch {
+      return null;
+    }
   }
 }

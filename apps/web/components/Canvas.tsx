@@ -99,20 +99,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo]);
 
-  // Upload image to Supabase and place on canvas
+  // Upload image to Supabase and place on canvas instantly
   const uploadAndAddImage = useCallback(
-    async (file: File | Blob, x?: number, y?: number) => {
+    (file: File | Blob, x?: number, y?: number) => {
       try {
-        setIsUploading(true);
-        const publicUrl = await uploadImageToSupabase(file);
-        if (!publicUrl) {
-          alert('Failed to upload image to Supabase bucket "cali". Please verify bucket settings.');
-          return;
-        }
-
+        const localUrl = URL.createObjectURL(file);
         const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = publicUrl;
+        img.src = localUrl;
+
         img.onload = () => {
           const maxWidth = 500;
           const scale = img.naturalWidth > maxWidth ? maxWidth / img.naturalWidth : 1;
@@ -122,31 +116,52 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           const posX = x !== undefined ? x : Math.max(20, Math.round((window.innerWidth - width) / 2));
           const posY = y !== undefined ? y : Math.max(60, Math.round((window.innerHeight - height) / 2));
 
-          const newImageShape: Shape = {
+          const localImageShape: Shape = {
             type: 'image',
-            src: publicUrl,
+            src: localUrl,
             x: posX,
             y: posY,
             width,
             height,
           };
 
-          setShapes((prev) => [...prev, newImageShape]);
+          // 1. Instantly display image on canvas without waiting for network upload
+          setShapes((prev) => [...prev, localImageShape]);
 
-          if (socket) {
-            socket.send(
-              JSON.stringify({
-                type: 'chat',
-                roomId: Number(roomId),
-                message: JSON.stringify(newImageShape),
-              })
-            );
-          }
+          // 2. Upload to Supabase bucket in the background
+          setIsUploading(true);
+          uploadImageToSupabase(file)
+            .then((publicUrl) => {
+              const finalSrc = publicUrl || localUrl;
+
+              // Update shape with the permanent Supabase public URL
+              setShapes((prev) =>
+                prev.map((s) => (s === localImageShape ? { ...s, src: finalSrc } : s))
+              );
+
+              // Broadcast to WebSocket room
+              if (socket) {
+                socket.send(
+                  JSON.stringify({
+                    type: 'chat',
+                    roomId: Number(roomId),
+                    message: JSON.stringify({
+                      ...localImageShape,
+                      src: finalSrc,
+                    }),
+                  })
+                );
+              }
+            })
+            .catch((err) => {
+              console.error('Background upload error:', err);
+            })
+            .finally(() => {
+              setIsUploading(false);
+            });
         };
       } catch (err) {
-        console.error('Error in uploadAndAddImage:', err);
-      } finally {
-        setIsUploading(false);
+        console.error('Error creating image preview:', err);
       }
     },
     [roomId, socket]
