@@ -165,7 +165,7 @@ app.delete("/chats/:id", async (req, res) => {
     }
 
     try {
-        await prismaClient.chat.delete({
+        await prismaClient.chat.deleteMany({
             where: {
                 id: id
             }

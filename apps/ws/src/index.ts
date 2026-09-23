@@ -128,7 +128,7 @@ wss.on('connection', (ws, request) => {
                 const shapeId = Number(parsedMessage.shapeId);
                 if (!isNaN(shapeId)) {
                     try {
-                        await prismaClient.chat.delete({
+                        await prismaClient.chat.deleteMany({
                             where: { id: shapeId }
                         });
                         console.log(`Deleted chat/shape ${shapeId} from DB`);

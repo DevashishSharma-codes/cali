@@ -51,3 +51,27 @@ export async function uploadImageToSupabase(file: File | Blob): Promise<string |
     }
   }
 }
+
+export async function deleteImageFromSupabase(src: string): Promise<boolean> {
+  try {
+    if (!src || !src.includes('/storage/v1/object/public/cali/')) {
+      return false;
+    }
+    const parts = src.split('/storage/v1/object/public/cali/');
+    const filePath = parts[1];
+    if (!filePath) return false;
+
+    const { error } = await supabase.storage
+      .from('cali')
+      .remove([decodeURIComponent(filePath)]);
+
+    if (error) {
+      console.warn('Error deleting image from Supabase bucket:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to delete image from Supabase:', err);
+    return false;
+  }
+}

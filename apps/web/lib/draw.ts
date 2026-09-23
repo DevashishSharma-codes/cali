@@ -1,9 +1,25 @@
 import rough from "roughjs";
 import { Shape } from "./types";
 
+export interface EraserParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  opacity: number;
+  color: string;
+}
+
 const imageCache = new Map<string, HTMLImageElement>();
 
-export function draw(canvas: HTMLCanvasElement, shapes: Shape[], onImageLoaded?: () => void) {
+export function draw(
+  canvas: HTMLCanvasElement,
+  shapes: Shape[],
+  onImageLoaded?: () => void,
+  eraserHalo?: { x: number; y: number } | null,
+  particles?: EraserParticle[]
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -100,4 +116,46 @@ export function draw(canvas: HTMLCanvasElement, shapes: Shape[], onImageLoaded?:
       });
     }
   });
+
+  // Render eraser shavings/dust particles
+  if (particles && particles.length > 0) {
+    ctx.save();
+    particles.forEach((p) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color.replace('OPACITY', Math.max(0, Math.min(1, p.opacity)).toFixed(2));
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // Render active eraser rubbing halo
+  if (eraserHalo) {
+    ctx.save();
+    const grad = ctx.createRadialGradient(
+      eraserHalo.x,
+      eraserHalo.y,
+      0,
+      eraserHalo.x,
+      eraserHalo.y,
+      22
+    );
+    grad.addColorStop(0, 'rgba(244, 114, 182, 0.4)');
+    grad.addColorStop(0.6, 'rgba(244, 114, 182, 0.15)');
+    grad.addColorStop(1, 'rgba(244, 114, 182, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(eraserHalo.x, eraserHalo.y, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Soft dashed friction perimeter
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(eraserHalo.x, eraserHalo.y, 16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 }

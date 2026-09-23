@@ -1,11 +1,9 @@
-'use client';
-
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { draw } from '../lib/draw';
+import { draw, EraserParticle } from '../lib/draw';
 import { Shape, Tool } from '../lib/types';
 import { deleteShapeApi, getExistingShapes } from '../lib/api';
 import { isPointNearShape } from '../lib/hitTest';
-import { uploadImageToSupabase } from '../lib/supabase';
+import { deleteImageFromSupabase, uploadImageToSupabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
 import { Loader2 } from 'lucide-react';
@@ -13,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 export function Canvas({ roomId }: { roomId: string | number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const shapesRef = useRef<Shape[]>([]);
   const [selectedTool, setSelectedTool] = useState<Tool>('pencil');
   const [isDrawing, setIsDrawing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -20,7 +19,76 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
 
+  // Eraser rubbing effect & particles
+  const particlesRef = useRef<EraserParticle[]>([]);
+  const eraserPosRef = useRef<{ x: number; y: number } | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+
   const { socket, loading } = useSocket();
+
+  // Keep shapesRef synchronized for 60fps animation loop
+  useEffect(() => {
+    shapesRef.current = shapes;
+  }, [shapes]);
+
+  const startParticleLoop = useCallback(() => {
+    if (animFrameRef.current !== null) return;
+
+    const loop = () => {
+      if (!canvasRef.current) return;
+
+      const particles = particlesRef.current;
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        if (!p) continue;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.04; // slight gravity
+        p.opacity -= 0.03; // smooth fade
+        p.size = Math.max(0.5, p.size * 0.98);
+        if (p.opacity <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      draw(
+        canvasRef.current,
+        shapesRef.current,
+        undefined,
+        eraserPosRef.current,
+        particles
+      );
+
+      if (particles.length > 0 || eraserPosRef.current !== null) {
+        animFrameRef.current = requestAnimationFrame(loop);
+      } else {
+        animFrameRef.current = null;
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(loop);
+  }, []);
+
+  const spawnParticles = useCallback((x: number, y: number, count = 4, burst = false) => {
+    const colors = [
+      'rgba(244, 114, 182, OPACITY)', // eraser pink
+      'rgba(255, 255, 255, OPACITY)', // chalk white
+      'rgba(165, 180, 252, OPACITY)', // subtle glow
+    ];
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = burst ? Math.random() * 3.5 + 1.5 : Math.random() * 1.5 + 0.5;
+      particlesRef.current.push({
+        x: x + (Math.random() - 0.5) * 14,
+        y: y + (Math.random() - 0.5) * 14,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: Math.random() * 3 + 1.5,
+        opacity: 0.9,
+        color: colors[Math.floor(Math.random() * colors.length)] || 'rgba(255, 255, 255, OPACITY)',
+      });
+    }
+  }, []);
 
   // 1. Fetch initial shapes from DB for this room
   useEffect(() => {
@@ -66,21 +134,26 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   }, [shapes]);
 
-  // Handle Undo: remove last shape locally, from DB, and over WebSocket
+  // Handle Undo: remove last shape locally, from DB, from S3 if image, and over WebSocket
   const handleUndo = useCallback(() => {
     setShapes((prev) => {
       if (prev.length === 0) return prev;
       const lastShape = prev[prev.length - 1];
-      if (lastShape && lastShape.id) {
-        deleteShapeApi(lastShape.id);
-        if (socket) {
-          socket.send(
-            JSON.stringify({
-              type: 'delete_shape',
-              roomId: Number(roomId),
-              shapeId: lastShape.id,
-            })
-          );
+      if (lastShape) {
+        if (lastShape.type === 'image') {
+          deleteImageFromSupabase(lastShape.src);
+        }
+        if (lastShape.id) {
+          deleteShapeApi(lastShape.id);
+          if (socket) {
+            socket.send(
+              JSON.stringify({
+                type: 'delete_shape',
+                roomId: Number(roomId),
+                shapeId: lastShape.id,
+              })
+            );
+          }
         }
       }
       return prev.slice(0, -1);
@@ -211,11 +284,21 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   // Erase shapes touched by cursor coordinates
   const eraseAt = useCallback(
     (x: number, y: number) => {
+      eraserPosRef.current = { x, y };
+      spawnParticles(x, y, 3, false);
+      startParticleLoop();
+
       setShapes((prev) => {
-        const toDelete = prev.filter((shape) => isPointNearShape(x, y, shape, 16));
+        const toDelete = prev.filter((shape) => isPointNearShape(x, y, shape, 18));
         if (toDelete.length === 0) return prev;
 
+        // Sparkle / dust burst when shapes are rubbed off
+        spawnParticles(x, y, 16, true);
+
         toDelete.forEach((shape) => {
+          if (shape.type === 'image') {
+            deleteImageFromSupabase(shape.src);
+          }
           if (shape.id) {
             deleteShapeApi(shape.id);
             if (socket) {
@@ -233,7 +316,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         return prev.filter((shape) => !toDelete.includes(shape));
       });
     },
-    [roomId, socket]
+    [roomId, socket, spawnParticles, startParticleLoop]
   );
 
   // Helper to construct a shape object from coordinates
@@ -332,6 +415,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     setIsDrawing(false);
 
     if (selectedTool === 'eraser') {
+      eraserPosRef.current = null;
+      startParticleLoop();
       return;
     }
 
@@ -356,6 +441,13 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           message: JSON.stringify(newShape),
         })
       );
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (selectedTool === 'eraser') {
+      eraserPosRef.current = null;
+      startParticleLoop();
     }
   };
 
@@ -414,6 +506,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         style={{
           backgroundColor: '#121212',
           cursor: getCursor(),
