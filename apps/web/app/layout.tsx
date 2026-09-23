@@ -12,8 +12,13 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "ExcaliDraw - Collaborative Whiteboard",
-  description: "Real-time hand-drawn collaborative whiteboard built with Rough.js, Next.js, and WebSockets",
+  title: "Pencil - Real-Time Collaborative Canvas",
+  description: "Infinite hand-drawn collaborative whiteboard built with Rough.js, Next.js, and WebSockets",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -23,6 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {children}
       </body>

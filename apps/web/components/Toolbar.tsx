@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import { Tool } from '../lib/types';
 import {
+  MousePointer,
   Hand,
   Pencil,
   Square,
@@ -34,15 +35,16 @@ export function Toolbar({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const tools: { type: Tool; label: string; icon: React.ReactNode }[] = [
-    { type: 'hand', label: 'Hand (Pan Canvas)', icon: <Hand size={18} /> },
-    { type: 'pencil', label: 'Pencil', icon: <Pencil size={18} /> },
-    { type: 'rect', label: 'Rectangle', icon: <Square size={18} /> },
-    { type: 'circle', label: 'Circle', icon: <Circle size={18} /> },
-    { type: 'diamond', label: 'Diamond', icon: <Diamond size={18} /> },
-    { type: 'line', label: 'Line', icon: <Minus size={18} /> },
-    { type: 'arrow', label: 'Arrow', icon: <MoveRight size={18} /> },
-    { type: 'text', label: 'Text', icon: <Type size={18} /> },
-    { type: 'eraser', label: 'Eraser', icon: <Eraser size={18} /> },
+    { type: 'select', label: 'Selection (V)', icon: <MousePointer size={18} /> },
+    { type: 'hand', label: 'Hand (H)', icon: <Hand size={18} /> },
+    { type: 'pencil', label: 'Pencil (P)', icon: <Pencil size={18} /> },
+    { type: 'rect', label: 'Rectangle (R)', icon: <Square size={18} /> },
+    { type: 'circle', label: 'Circle (C)', icon: <Circle size={18} /> },
+    { type: 'diamond', label: 'Diamond (D)', icon: <Diamond size={18} /> },
+    { type: 'line', label: 'Line (L)', icon: <Minus size={18} /> },
+    { type: 'arrow', label: 'Arrow (A)', icon: <MoveRight size={18} /> },
+    { type: 'text', label: 'Text (T)', icon: <Type size={18} /> },
+    { type: 'eraser', label: 'Eraser (E)', icon: <Eraser size={18} /> },
   ];
 
   return (
@@ -62,7 +64,7 @@ export function Toolbar({
         border: '1px solid rgba(255, 255, 255, 0.14)',
         borderRadius: '16px',
         boxShadow:
-          '0 24px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22)',
+          '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)',
         zIndex: 100,
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
@@ -83,12 +85,10 @@ export function Toolbar({
               height: '36px',
               borderRadius: '9px',
               border: 'none',
-              backgroundColor: isActive ? '#6366f1' : 'transparent',
-              color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.7)',
+              backgroundColor: isActive ? '#cae39f' : 'transparent',
+              color: isActive ? '#16220b' : 'rgba(255, 255, 255, 0.7)',
               cursor: 'pointer',
-              boxShadow: isActive
-                ? '0 2px 10px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
-                : 'none',
+              boxShadow: 'none',
               transform: isActive ? 'scale(1.02)' : 'scale(1)',
               transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}

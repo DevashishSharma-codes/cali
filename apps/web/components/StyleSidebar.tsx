@@ -105,7 +105,7 @@ export function StyleSidebar({
             borderRadius: '18px',
             padding: '16px',
             boxShadow:
-              '0 24px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22)',
+              '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
@@ -150,13 +150,11 @@ export function StyleSidebar({
                       borderRadius: '6px',
                       backgroundColor: color,
                       border: isSelected
-                        ? '2px solid #818cf8'
+                        ? '2px solid #cae39f'
                         : '1px solid rgba(255, 255, 255, 0.18)',
-                      boxShadow: isSelected
-                        ? '0 0 10px rgba(129, 140, 248, 0.75), inset 0 1px 1px rgba(255,255,255,0.3)'
-                        : '0 1px 3px rgba(0, 0, 0, 0.3)',
+                      boxShadow: 'none',
                       cursor: 'pointer',
-                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
                       transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       padding: 0,
                     }}
@@ -175,7 +173,7 @@ export function StyleSidebar({
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
                   border: '1px dashed rgba(255, 255, 255, 0.28)',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
@@ -235,13 +233,11 @@ export function StyleSidebar({
                       borderRadius: '6px',
                       backgroundColor: isTransparent ? 'rgba(30, 30, 38, 0.8)' : color,
                       border: isSelected
-                        ? '2px solid #818cf8'
+                        ? '2px solid #cae39f'
                         : '1px solid rgba(255, 255, 255, 0.18)',
-                      boxShadow: isSelected
-                        ? '0 0 10px rgba(129, 140, 248, 0.75), inset 0 1px 1px rgba(255,255,255,0.3)'
-                        : '0 1px 3px rgba(0, 0, 0, 0.3)',
+                      boxShadow: 'none',
                       cursor: 'pointer',
-                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
                       transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       padding: 0,
                       position: 'relative',
@@ -276,7 +272,7 @@ export function StyleSidebar({
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
                   border: '1px dashed rgba(255, 255, 255, 0.28)',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
@@ -287,7 +283,7 @@ export function StyleSidebar({
                 <Palette size={12} color="rgba(255, 255, 255, 0.7)" />
                 <input
                   type="color"
-                  value={backgroundColor === 'transparent' ? '#6366f1' : backgroundColor}
+                  value={backgroundColor === 'transparent' ? '#cae39f' : backgroundColor}
                   onChange={(e) => setBackgroundColor(e.target.value)}
                   style={{
                     position: 'absolute',
@@ -345,11 +341,9 @@ export function StyleSidebar({
                         fontWeight: 600,
                         borderRadius: '7px',
                         border: 'none',
-                        backgroundColor: isSelected ? '#6366f1' : 'transparent',
-                        color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
-                        boxShadow: isSelected
-                          ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
-                          : 'none',
+                        backgroundColor: isSelected ? '#cae39f' : 'transparent',
+                        color: isSelected ? '#16220b' : 'rgba(255, 255, 255, 0.65)',
+                        boxShadow: 'none',
                         cursor: 'pointer',
                         transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                       }}
@@ -405,10 +399,8 @@ export function StyleSidebar({
                       justifyContent: 'center',
                       borderRadius: '7px',
                       border: 'none',
-                      backgroundColor: isSelected ? '#6366f1' : 'transparent',
-                      boxShadow: isSelected
-                        ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
-                        : 'none',
+                      backgroundColor: isSelected ? '#cae39f' : 'transparent',
+                      boxShadow: 'none',
                       cursor: 'pointer',
                       transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
@@ -417,7 +409,7 @@ export function StyleSidebar({
                       style={{
                         width: '22px',
                         height: `${item.barHeight}px`,
-                        backgroundColor: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
+                        backgroundColor: isSelected ? '#16220b' : 'rgba(255, 255, 255, 0.65)',
                         borderRadius: '2px',
                       }}
                     />
@@ -470,10 +462,8 @@ export function StyleSidebar({
                       justifyContent: 'center',
                       borderRadius: '7px',
                       border: 'none',
-                      backgroundColor: isSelected ? '#6366f1' : 'transparent',
-                      boxShadow: isSelected
-                        ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
-                        : 'none',
+                      backgroundColor: isSelected ? '#cae39f' : 'transparent',
+                      boxShadow: 'none',
                       cursor: 'pointer',
                       transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
@@ -482,7 +472,7 @@ export function StyleSidebar({
                       style={{
                         width: '24px',
                         height: 0,
-                        borderTop: `2px ${item.dash} ${isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)'}`,
+                        borderTop: `2px ${item.dash} ${isSelected ? '#16220b' : 'rgba(255, 255, 255, 0.65)'}`,
                       }}
                     />
                   </button>
@@ -536,11 +526,9 @@ export function StyleSidebar({
                       fontWeight: 700,
                       borderRadius: '7px',
                       border: 'none',
-                      backgroundColor: isSelected ? '#6366f1' : 'transparent',
-                      color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
-                      boxShadow: isSelected
-                        ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
-                        : 'none',
+                      backgroundColor: isSelected ? '#cae39f' : 'transparent',
+                      color: isSelected ? '#16220b' : 'rgba(255, 255, 255, 0.65)',
+                      boxShadow: 'none',
                       cursor: 'pointer',
                       transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
@@ -595,7 +583,7 @@ export function StyleSidebar({
                 backgroundColor: 'rgba(255, 255, 255, 0.14)',
                 outline: 'none',
                 cursor: 'pointer',
-                accentColor: '#6366f1',
+                accentColor: '#cae39f',
               }}
             />
           </div>
@@ -634,13 +622,11 @@ export function StyleSidebar({
                       borderRadius: '6px',
                       backgroundColor: color,
                       border: isSelected
-                        ? '2px solid #818cf8'
+                        ? '2px solid #cae39f'
                         : '1px solid rgba(255, 255, 255, 0.18)',
-                      boxShadow: isSelected
-                        ? '0 0 10px rgba(129, 140, 248, 0.75), inset 0 1px 1px rgba(255,255,255,0.3)'
-                        : '0 1px 3px rgba(0, 0, 0, 0.3)',
+                      boxShadow: 'none',
                       cursor: 'pointer',
-                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
                       transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       padding: 0,
                     }}
@@ -659,7 +645,7 @@ export function StyleSidebar({
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
                   border: '1px dashed rgba(255, 255, 255, 0.28)',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
@@ -704,7 +690,7 @@ export function StyleSidebar({
           justifyContent: 'center',
           cursor: 'pointer',
           boxShadow:
-            '0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+            '0 4px 14px rgba(0, 0, 0, 0.35)',
           transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         onMouseEnter={(e) => {

@@ -1,5 +1,6 @@
 import rough from "roughjs";
 import { Shape } from "./types";
+import { getShapeBounds } from "./hitTest";
 
 export interface EraserParticle {
   x: number;
@@ -53,7 +54,9 @@ export function draw(
   canvasBackground?: string,
   panX: number = 0,
   panY: number = 0,
-  zoom: number = 1
+  zoom: number = 1,
+  selectedShapes?: Shape[],
+  marqueeBox?: { startX: number; startY: number; currentX: number; currentY: number } | null
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -90,7 +93,19 @@ export function draw(
           if (onImageLoaded) {
             onImageLoaded();
           } else {
-            draw(canvas, shapes, onImageLoaded, eraserHalo, particles, canvasBackground, panX, panY, zoom);
+            draw(
+              canvas,
+              shapes,
+              onImageLoaded,
+              eraserHalo,
+              particles,
+              canvasBackground,
+              panX,
+              panY,
+              zoom,
+              selectedShapes,
+              marqueeBox
+            );
           }
         };
         imageCache.set(shape.src, img);
@@ -161,6 +176,67 @@ export function draw(
 
     ctx.restore();
   });
+
+  // Render selection bounding boxes & corner handles
+  if (selectedShapes && selectedShapes.length > 0) {
+    ctx.save();
+    const pad = 6 / zoom;
+    const handleSize = 7 / zoom;
+
+    selectedShapes.forEach((shape) => {
+      const bounds = getShapeBounds(shape);
+      const minX = bounds.minX - pad;
+      const minY = bounds.minY - pad;
+      const maxX = bounds.maxX + pad;
+      const maxY = bounds.maxY + pad;
+      const w = maxX - minX;
+      const h = maxY - minY;
+
+      // Dashed Selection Box
+      ctx.strokeStyle = "#cae39f";
+      ctx.lineWidth = 1.5 / zoom;
+      ctx.setLineDash([4 / zoom, 4 / zoom]);
+      ctx.strokeRect(minX, minY, w, h);
+
+      // Corner Grab Handles
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#8fb654";
+      ctx.lineWidth = 1.5 / zoom;
+
+      const corners = [
+        [minX, minY],
+        [maxX, minY],
+        [maxX, maxY],
+        [minX, maxY],
+      ];
+
+      corners.forEach(([cx, cy]) => {
+        if (cx === undefined || cy === undefined) return;
+        ctx.fillRect(cx - handleSize / 2, cy - handleSize / 2, handleSize, handleSize);
+        ctx.strokeRect(cx - handleSize / 2, cy - handleSize / 2, handleSize, handleSize);
+      });
+    });
+    ctx.restore();
+  }
+
+  // Render marquee selection drag box
+  if (marqueeBox) {
+    ctx.save();
+    const minX = Math.min(marqueeBox.startX, marqueeBox.currentX);
+    const minY = Math.min(marqueeBox.startY, marqueeBox.currentY);
+    const w = Math.abs(marqueeBox.currentX - marqueeBox.startX);
+    const h = Math.abs(marqueeBox.currentY - marqueeBox.startY);
+
+    ctx.fillStyle = "rgba(188, 215, 140, 0.18)";
+    ctx.fillRect(minX, minY, w, h);
+
+    ctx.strokeStyle = "rgba(188, 215, 140, 0.9)";
+    ctx.lineWidth = 1.5 / zoom;
+    ctx.setLineDash([4 / zoom, 4 / zoom]);
+    ctx.strokeRect(minX, minY, w, h);
+    ctx.restore();
+  }
 
   // Render eraser shavings/dust particles in world coordinates
   if (particles && particles.length > 0) {

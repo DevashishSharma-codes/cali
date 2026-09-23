@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { draw, EraserParticle } from '../lib/draw';
 import { FillStyle, Shape, StrokeStyle, Tool } from '../lib/types';
 import { deleteShapeApi, getExistingShapes } from '../lib/api';
-import { isPointNearShape } from '../lib/hitTest';
+import { isPointNearShape, isShapeInBox, moveShape } from '../lib/hitTest';
 import { deleteImageFromSupabase, uploadImageToSupabase } from '../lib/supabase';
 import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
@@ -16,12 +16,24 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const shapesRef = useRef<Shape[]>([]);
-  const [selectedTool, setSelectedTool] = useState<Tool>('pencil');
+  const [selectedTool, setSelectedTool] = useState<Tool>('select');
   const [isDrawing, setIsDrawing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
+
+  // Selection state
+  const [selectedShapes, setSelectedShapes] = useState<Shape[]>([]);
+  const selectedShapesRef = useRef<Shape[]>([]);
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const dragStartWorldPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [marqueeBox, setMarqueeBox] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
 
   // Viewport / Camera Pan and Zoom state
   const [panX, setPanX] = useState<number>(0);
@@ -37,10 +49,18 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     startPanY: 0,
   });
 
-  // Keep panRef synchronized for wheel/animation events
+  // Keep references synchronized for animation/event callbacks
   useEffect(() => {
     panRef.current = { panX, panY, zoom };
   }, [panX, panY, zoom]);
+
+  useEffect(() => {
+    selectedShapesRef.current = selectedShapes;
+  }, [selectedShapes]);
+
+  useEffect(() => {
+    shapesRef.current = shapes;
+  }, [shapes]);
 
   // Style attributes state
   const [strokeColor, setStrokeColor] = useState<string>('#ffffff');
@@ -82,6 +102,51 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       };
     },
     [panX, panY, zoom]
+  );
+
+  // Batch style updater for selected shapes + default draw style
+  const updateStyleProperty = useCallback(
+    (prop: string, value: any) => {
+      if (prop === 'strokeColor') setStrokeColor(value);
+      if (prop === 'backgroundColor') setBackgroundColor(value);
+      if (prop === 'fillStyle') setFillStyle(value);
+      if (prop === 'strokeWidth') setStrokeWidth(value);
+      if (prop === 'strokeStyle') setStrokeStyle(value);
+      if (prop === 'roughness') setRoughness(value);
+      if (prop === 'opacity') setOpacity(value);
+
+      if (selectedShapesRef.current.length > 0) {
+        const selectedIds = new Set(selectedShapesRef.current.map((s) => s.id ?? s));
+        setShapes((prev) => {
+          const updated = prev.map((s) => {
+            const isSelected = selectedIds.has(s.id ?? s) || selectedShapesRef.current.includes(s);
+            if (isSelected) {
+              const updatedShape = { ...s, [prop]: value };
+              if (socket) {
+                socket.send(
+                  JSON.stringify({
+                    type: 'chat',
+                    roomId: Number(roomId),
+                    message: JSON.stringify(updatedShape),
+                  })
+                );
+              }
+              return updatedShape;
+            }
+            return s;
+          });
+          return updated;
+        });
+
+        setSelectedShapes((curr) =>
+          curr.map((s) => ({
+            ...s,
+            [prop]: value,
+          }))
+        );
+      }
+    },
+    [roomId, socket]
   );
 
   // Zoom control actions
@@ -132,14 +197,52 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     } catch (e) {}
   }, []);
 
-  // Keyboard events: Spacebar pan and Zoom shortcuts
+  // Delete selected shapes (Backspace / Delete key)
+  const deleteSelectedShapes = useCallback(() => {
+    if (selectedShapesRef.current.length === 0) return;
+
+    const toDelete = [...selectedShapesRef.current];
+    setSelectedShapes([]);
+
+    toDelete.forEach((shape) => {
+      if (shape.type === 'image') {
+        deleteImageFromSupabase(shape.src);
+      }
+      if (shape.id) {
+        deleteShapeApi(shape.id);
+        if (socket) {
+          socket.send(
+            JSON.stringify({
+              type: 'delete_shape',
+              roomId: Number(roomId),
+              shapeId: shape.id,
+            })
+          );
+        }
+      }
+    });
+
+    setShapes((prev) => prev.filter((s) => !toDelete.includes(s)));
+  }, [roomId, socket]);
+
+  // Keyboard events: Tool shortcuts, Spacebar pan, Zoom, and Delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInput = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
-      if (e.code === 'Space' && !isInput) {
+      if (isInput) return;
+
+      if (e.code === 'Space') {
         e.preventDefault();
         setIsSpacePressed(true);
+        return;
       }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        deleteSelectedShapes();
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
         handleZoomIn();
@@ -149,6 +252,18 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
         e.preventDefault();
         handleResetZoom();
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'v' || key === '1') setSelectedTool('select');
+        else if (key === 'h' || key === '2') setSelectedTool('hand');
+        else if (key === 'p' || key === '3') setSelectedTool('pencil');
+        else if (key === 'r' || key === '4') setSelectedTool('rect');
+        else if (key === 'c' || key === '5') setSelectedTool('circle');
+        else if (key === 'd' || key === '6') setSelectedTool('diamond');
+        else if (key === 'l' || key === '7') setSelectedTool('line');
+        else if (key === 'a' || key === '8') setSelectedTool('arrow');
+        else if (key === 't' || key === '9') setSelectedTool('text');
+        else if (key === 'e' || key === '0') setSelectedTool('eraser');
       }
     };
 
@@ -164,7 +279,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleZoomIn, handleZoomOut, handleResetZoom]);
+  }, [deleteSelectedShapes, handleZoomIn, handleZoomOut, handleResetZoom]);
 
   // Non-passive wheel event listener for 2-finger trackpad swipe, mouse scroll pan, and pinch zoom
   useEffect(() => {
@@ -207,11 +322,6 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       textareaRef.current.focus();
     }
   }, [editingText]);
-
-  // Keep shapesRef synchronized for 60fps animation loop
-  useEffect(() => {
-    shapesRef.current = shapes;
-  }, [shapes]);
 
   // Commit typed text as a new TextShape in world coordinates
   const commitText = useCallback(() => {
@@ -281,7 +391,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         canvasBackground,
         panRef.current.panX,
         panRef.current.panY,
-        panRef.current.zoom
+        panRef.current.zoom,
+        selectedShapesRef.current,
+        marqueeBox
       );
 
       if (particles.length > 0 || eraserPosRef.current !== null) {
@@ -292,7 +404,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     };
 
     animFrameRef.current = requestAnimationFrame(loop);
-  }, [canvasBackground]);
+  }, [canvasBackground, marqueeBox]);
 
   const spawnParticles = useCallback((worldX: number, worldY: number, count = 4, burst = false) => {
     const colors = [
@@ -342,24 +454,45 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             if (data.id && !newShape.id) {
               newShape.id = data.id;
             }
-            setShapes((prev) => [...prev, newShape]);
+            setShapes((prev) => {
+              const existingIdx = prev.findIndex((s) => s.id && s.id === newShape.id);
+              if (existingIdx !== -1) {
+                const next = [...prev];
+                next[existingIdx] = newShape;
+                return next;
+              }
+              return [...prev, newShape];
+            });
           } else if (data.type === 'delete_shape') {
             const deletedId = Number(data.shapeId);
             setShapes((prev) => prev.filter((s) => s.id !== deletedId));
+            setSelectedShapes((prev) => prev.filter((s) => s.id !== deletedId));
           }
         } catch (e) {}
       };
     }
   }, [socket, loading, roomId]);
 
-  // 3. Set canvas dimensions and redraw whenever shapes, pan, or zoom updates
+  // 3. Set canvas dimensions and redraw whenever shapes, pan, zoom, selection, or marquee changes
   useEffect(() => {
     if (canvasRef.current) {
       canvasRef.current.width = window.innerWidth;
       canvasRef.current.height = window.innerHeight;
-      draw(canvasRef.current, shapes, undefined, undefined, undefined, canvasBackground, panX, panY, zoom);
+      draw(
+        canvasRef.current,
+        shapes,
+        undefined,
+        undefined,
+        undefined,
+        canvasBackground,
+        panX,
+        panY,
+        zoom,
+        selectedShapes,
+        marqueeBox
+      );
     }
-  }, [shapes, canvasBackground, panX, panY, zoom]);
+  }, [shapes, canvasBackground, panX, panY, zoom, selectedShapes, marqueeBox]);
 
   // Redraw when custom sketchy web fonts finish loading
   useEffect(() => {
@@ -375,12 +508,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             canvasBackground,
             panRef.current.panX,
             panRef.current.panY,
-            panRef.current.zoom
+            panRef.current.zoom,
+            selectedShapesRef.current,
+            marqueeBox
           );
         }
       });
     }
-  }, [canvasBackground]);
+  }, [canvasBackground, marqueeBox]);
 
   // Handle Undo: remove last shape locally, from DB, from S3 if image, and over WebSocket
   const handleUndo = useCallback(() => {
@@ -406,6 +541,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       }
       return prev.slice(0, -1);
     });
+    setSelectedShapes([]);
   }, [roomId, socket]);
 
   // Keyboard shortcut for Undo (Ctrl+Z / Cmd+Z)
@@ -563,6 +699,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           }
         });
 
+        setSelectedShapes((curr) => curr.filter((s) => !toDelete.includes(s)));
         return prev.filter((shape) => !toDelete.includes(shape));
       });
     },
@@ -637,7 +774,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Mouse down: handle panning, drawing, erasing, or text tool
+  // Mouse down: handle panning, selection, drawing, erasing, or text tool
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isSpacePressed || selectedTool === 'hand' || e.button === 1) {
       setIsPanning(true);
@@ -655,6 +792,49 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
 
     const worldPos = screenToWorld(e.clientX, e.clientY);
+
+    // SELECTION TOOL HANDLING
+    if (selectedTool === 'select') {
+      // Find top-most shape under cursor (iterating from newest to oldest)
+      const hitShape = [...shapes].reverse().find((s) => isPointNearShape(worldPos.x, worldPos.y, s, 10 / zoom));
+
+      if (hitShape) {
+        const isAlreadySelected = selectedShapes.includes(hitShape);
+        if (e.shiftKey) {
+          // Toggle selection
+          setSelectedShapes((prev) =>
+            isAlreadySelected ? prev.filter((s) => s !== hitShape) : [...prev, hitShape]
+          );
+        } else if (!isAlreadySelected) {
+          // Select clicked shape exclusively and load its style into the sidebar
+          setSelectedShapes([hitShape]);
+          if (hitShape.strokeColor) setStrokeColor(hitShape.strokeColor);
+          if (hitShape.backgroundColor !== undefined) setBackgroundColor(hitShape.backgroundColor);
+          if (hitShape.fillStyle) setFillStyle(hitShape.fillStyle);
+          if (hitShape.strokeWidth) setStrokeWidth(hitShape.strokeWidth);
+          if (hitShape.strokeStyle) setStrokeStyle(hitShape.strokeStyle);
+          if (hitShape.roughness !== undefined) setRoughness(hitShape.roughness);
+          if (hitShape.opacity !== undefined) setOpacity(hitShape.opacity);
+        }
+
+        // Start dragging selection group
+        setIsDraggingSelection(true);
+        dragStartWorldPos.current = worldPos;
+      } else {
+        // Clicked on empty space: clear selection unless Shift is held
+        if (!e.shiftKey) {
+          setSelectedShapes([]);
+        }
+        // Start marquee selection drag
+        setMarqueeBox({
+          startX: worldPos.x,
+          startY: worldPos.y,
+          currentX: worldPos.x,
+          currentY: worldPos.y,
+        });
+      }
+      return;
+    }
 
     if (selectedTool === 'text') {
       setEditingText({ x: worldPos.x, y: worldPos.y, text: '' });
@@ -690,13 +870,15 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           canvasBackground,
           panX,
           panY,
-          zoom
+          zoom,
+          selectedShapes,
+          marqueeBox
         );
       }
     }
   };
 
-  // Mouse move: handle viewport panning, drawing preview, or continuous erasing
+  // Mouse move: handle viewport panning, dragging selected shapes, marquee selection, drawing preview, or erasing
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning) {
       const dx = e.clientX - panStartRef.current.startX;
@@ -706,9 +888,46 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       return;
     }
 
-    if (!isDrawing || !canvasRef.current || selectedTool === 'text') return;
-
     const worldPos = screenToWorld(e.clientX, e.clientY);
+
+    // Dragging selected shapes
+    if (selectedTool === 'select') {
+      if (isDraggingSelection && selectedShapes.length > 0) {
+        const dx = worldPos.x - dragStartWorldPos.current.x;
+        const dy = worldPos.y - dragStartWorldPos.current.y;
+        dragStartWorldPos.current = worldPos;
+
+        const selectedSet = new Set(selectedShapes);
+        setShapes((prev) =>
+          prev.map((s) => (selectedSet.has(s) ? moveShape(s, dx, dy) : s))
+        );
+        setSelectedShapes((prev) => prev.map((s) => moveShape(s, dx, dy)));
+        return;
+      }
+
+      if (marqueeBox) {
+        const currentMarquee = {
+          ...marqueeBox,
+          currentX: worldPos.x,
+          currentY: worldPos.y,
+        };
+        setMarqueeBox(currentMarquee);
+
+        const box = {
+          minX: Math.min(currentMarquee.startX, currentMarquee.currentX),
+          minY: Math.min(currentMarquee.startY, currentMarquee.currentY),
+          maxX: Math.max(currentMarquee.startX, currentMarquee.currentX),
+          maxY: Math.max(currentMarquee.startY, currentMarquee.currentY),
+        };
+
+        const enclosed = shapes.filter((s) => isShapeInBox(s, box));
+        setSelectedShapes(enclosed);
+        return;
+      }
+      return;
+    }
+
+    if (!isDrawing || !canvasRef.current || selectedTool === 'text') return;
 
     if (selectedTool === 'eraser') {
       eraseAt(worldPos.x, worldPos.y);
@@ -732,7 +951,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         canvasBackground,
         panX,
         panY,
-        zoom
+        zoom,
+        selectedShapes,
+        marqueeBox
       );
     } else {
       const previewShape = createShape(selectedTool, startX, startY, worldPos.x, worldPos.y);
@@ -745,15 +966,39 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         canvasBackground,
         panX,
         panY,
-        zoom
+        zoom,
+        selectedShapes,
+        marqueeBox
       );
     }
   };
 
-  // Mouse up: finalize shape or stop panning
+  // Mouse up: finalize shape, stop panning, or end selection/marquee
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning) {
       setIsPanning(false);
+      return;
+    }
+
+    if (selectedTool === 'select') {
+      if (isDraggingSelection) {
+        setIsDraggingSelection(false);
+        // Sync moved shapes to websocket peers
+        if (socket && selectedShapes.length > 0) {
+          selectedShapes.forEach((shape) => {
+            socket.send(
+              JSON.stringify({
+                type: 'chat',
+                roomId: Number(roomId),
+                message: JSON.stringify(shape),
+              })
+            );
+          });
+        }
+      }
+      if (marqueeBox) {
+        setMarqueeBox(null);
+      }
       return;
     }
 
@@ -800,6 +1045,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (isPanning) {
       setIsPanning(false);
     }
+    if (isDraggingSelection) {
+      setIsDraggingSelection(false);
+    }
+    if (marqueeBox) {
+      setMarqueeBox(null);
+    }
     if (selectedTool === 'eraser') {
       eraserPosRef.current = null;
       startParticleLoop();
@@ -812,6 +1063,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
     if (isSpacePressed || selectedTool === 'hand') {
       return 'grab';
+    }
+    if (selectedTool === 'select') {
+      return isDraggingSelection ? 'grabbing' : 'default';
     }
     if (selectedTool === 'text') {
       return 'text';
@@ -849,19 +1103,19 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
       <StyleSidebar
         strokeColor={strokeColor}
-        setStrokeColor={setStrokeColor}
+        setStrokeColor={(c) => updateStyleProperty('strokeColor', c)}
         backgroundColor={backgroundColor}
-        setBackgroundColor={setBackgroundColor}
+        setBackgroundColor={(c) => updateStyleProperty('backgroundColor', c)}
         fillStyle={fillStyle}
-        setFillStyle={setFillStyle}
+        setFillStyle={(f) => updateStyleProperty('fillStyle', f)}
         strokeWidth={strokeWidth}
-        setStrokeWidth={setStrokeWidth}
+        setStrokeWidth={(w) => updateStyleProperty('strokeWidth', w)}
         strokeStyle={strokeStyle}
-        setStrokeStyle={setStrokeStyle}
+        setStrokeStyle={(s) => updateStyleProperty('strokeStyle', s)}
         roughness={roughness}
-        setRoughness={setRoughness}
+        setRoughness={(r) => updateStyleProperty('roughness', r)}
         opacity={opacity}
-        setOpacity={setOpacity}
+        setOpacity={(o) => updateStyleProperty('opacity', o)}
         canvasBackground={canvasBackground}
         setCanvasBackground={handleSetCanvasBackground}
       />
@@ -872,6 +1126,61 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
       />
+
+      {/* Pencil Brand & Room Badge */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 12px',
+          backgroundColor: 'rgba(24, 24, 30, 0.76)',
+          backdropFilter: 'blur(32px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          borderRadius: '12px',
+          boxShadow:
+            '0 16px 36px -8px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2)',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+          userSelect: 'none',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            color: '#cae39f',
+            fontWeight: 700,
+            fontSize: '14px',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          <img src="/favicon.svg" alt="Pencil Logo" style={{ width: '18px', height: '18px' }} />
+          <span>Pencil</span>
+        </div>
+        <div
+          style={{
+            width: '1px',
+            height: '14px',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          }}
+        />
+        <span
+          style={{
+            fontSize: '11px',
+            fontWeight: 500,
+            color: 'rgba(255, 255, 255, 0.55)',
+          }}
+        >
+          Room {roomId}
+        </span>
+      </div>
 
       {editingText && textScreenPos && (
         <textarea
@@ -900,7 +1209,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             fontSize: '24px',
             fontWeight: 600,
             lineHeight: 1.35,
-            border: '1px dashed #818cf8',
+            border: '1px dashed #cae39f',
             borderRadius: '6px',
             padding: '4px 8px',
             outline: 'none',
@@ -925,7 +1234,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             padding: '10px 18px',
             backgroundColor: 'rgba(29, 29, 34, 0.95)',
             backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(99, 102, 241, 0.4)',
+            border: '1px solid rgba(202, 227, 159, 0.4)',
             borderRadius: '10px',
             color: '#ffffff',
             fontSize: '13px',
@@ -934,7 +1243,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             zIndex: 150,
           }}
         >
-          <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+          <Loader2 size={16} className="animate-spin" style={{ color: '#cae39f', animation: 'spin 1s linear infinite' }} />
           <span>Uploading image to Supabase...</span>
         </div>
       )}

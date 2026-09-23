@@ -50,33 +50,38 @@ export default function Home() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '10px',
-            padding: '8px 16px',
+            padding: '8px 18px',
             borderRadius: '9999px',
-            background: 'rgba(99, 102, 241, 0.12)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
-            color: '#a5b4fc',
+            background: 'rgba(202, 227, 159, 0.12)',
+            border: '1px solid rgba(202, 227, 159, 0.3)',
+            color: '#cae39f',
             fontSize: '13px',
-            fontWeight: 500,
-            marginBottom: '16px',
+            fontWeight: 600,
+            marginBottom: '20px',
           }}
         >
           <Sparkles size={16} /> Real-time Collaborative Canvas
         </div>
-        <h1
-          style={{
-            fontSize: '2.75rem',
-            fontWeight: 800,
-            letterSpacing: '-0.025em',
-            margin: '0 0 12px 0',
-            background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Excalidraw Clone
-        </h1>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '12px' }}>
+          <img src="/favicon.svg" alt="Pencil Logo" style={{ width: '48px', height: '48px' }} />
+          <h1
+            style={{
+              fontSize: '3.25rem',
+              fontWeight: 800,
+              letterSpacing: '-0.03em',
+              margin: 0,
+              background: 'linear-gradient(135deg, #ffffff 0%, #cae39f 60%, #8fb654 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
+            Pencil
+          </h1>
+        </div>
+
         <p style={{ color: '#94a3b8', fontSize: '1.05rem', margin: 0, maxWidth: '440px' }}>
-          Create or join a room using a Room ID to sketch together.
+          An infinite hand-drawn whiteboard to sketch, collaborate, and create together in real time.
         </p>
       </div>
 
@@ -110,8 +115,8 @@ export default function Home() {
                 width: '44px',
                 height: '44px',
                 borderRadius: '12px',
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: '#818cf8',
+                background: 'rgba(202, 227, 159, 0.15)',
+                color: '#cae39f',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -124,7 +129,7 @@ export default function Home() {
               Create Room
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 0 20px 0', lineHeight: 1.4 }}>
-              Enter a Room ID to start drawing.
+              Enter a Room ID to start a new canvas session.
             </p>
           </div>
 
@@ -156,12 +161,22 @@ export default function Home() {
                 width: '100%',
                 padding: '12px',
                 borderRadius: '10px',
-                backgroundColor: '#6366f1',
-                color: '#ffffff',
-                fontWeight: 600,
+                backgroundColor: '#cae39f',
+                color: '#16220b',
+                fontWeight: 700,
                 fontSize: '14px',
                 border: 'none',
                 cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#b8d689';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#cae39f';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               <span>Enter Room</span>
@@ -190,8 +205,8 @@ export default function Home() {
                 width: '44px',
                 height: '44px',
                 borderRadius: '12px',
-                background: 'rgba(6, 182, 212, 0.15)',
-                color: '#22d3ee',
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#cae39f',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -204,7 +219,7 @@ export default function Home() {
               Join Room
             </h2>
             <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 0 20px 0', lineHeight: 1.4 }}>
-              Enter an existing Room ID to join the session.
+              Enter an existing Room ID to join your team.
             </p>
           </div>
 
@@ -236,12 +251,23 @@ export default function Home() {
                 width: '100%',
                 padding: '12px',
                 borderRadius: '10px',
-                backgroundColor: '#0e7490',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 color: '#ffffff',
                 fontWeight: 600,
                 fontSize: '14px',
-                border: 'none',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(202, 227, 159, 0.18)';
+                e.currentTarget.style.borderColor = 'rgba(202, 227, 159, 0.4)';
+                e.currentTarget.style.color = '#cae39f';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.color = '#ffffff';
               }}
             >
               <span>Join Room</span>
