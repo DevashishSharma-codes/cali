@@ -2,7 +2,19 @@
 
 import { useRef } from 'react';
 import { Tool } from '../lib/types';
-import { Pencil, Square, Circle, Diamond, Minus, MoveRight, Eraser, Undo2, Image as ImageIcon, Type } from 'lucide-react';
+import {
+  Hand,
+  Pencil,
+  Square,
+  Circle,
+  Diamond,
+  Minus,
+  MoveRight,
+  Eraser,
+  Undo2,
+  Image as ImageIcon,
+  Type,
+} from 'lucide-react';
 
 interface ToolbarProps {
   selectedTool: Tool;
@@ -22,6 +34,7 @@ export function Toolbar({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const tools: { type: Tool; label: string; icon: React.ReactNode }[] = [
+    { type: 'hand', label: 'Hand (Pan Canvas)', icon: <Hand size={18} /> },
     { type: 'pencil', label: 'Pencil', icon: <Pencil size={18} /> },
     { type: 'rect', label: 'Rectangle', icon: <Square size={18} /> },
     { type: 'circle', label: 'Circle', icon: <Circle size={18} /> },
@@ -41,14 +54,18 @@ export function Toolbar({
         transform: 'translateX(-50%)',
         display: 'flex',
         alignItems: 'center',
-        gap: '6px',
-        padding: '6px 8px',
-        backgroundColor: 'rgba(29, 29, 34, 0.9)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        borderRadius: '12px',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+        gap: '4px',
+        padding: '5px 8px',
+        backgroundColor: 'rgba(24, 24, 30, 0.76)',
+        backdropFilter: 'blur(32px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
+        borderRadius: '16px',
+        boxShadow:
+          '0 24px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22)',
         zIndex: 100,
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
       }}
     >
       {tools.map((tool) => {
@@ -64,23 +81,27 @@ export function Toolbar({
               justifyContent: 'center',
               width: '36px',
               height: '36px',
-              borderRadius: '8px',
+              borderRadius: '9px',
               border: 'none',
               backgroundColor: isActive ? '#6366f1' : 'transparent',
-              color: isActive ? '#ffffff' : '#94a3b8',
+              color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.7)',
               cursor: 'pointer',
-              transition: 'background-color 0.15s, color 0.15s, transform 0.1s',
+              boxShadow: isActive
+                ? '0 2px 10px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3)'
+                : 'none',
+              transform: isActive ? 'scale(1.02)' : 'scale(1)',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onMouseEnter={(e) => {
               if (!isActive) {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                 e.currentTarget.style.color = '#ffffff';
               }
             }}
             onMouseLeave={(e) => {
               if (!isActive) {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#94a3b8';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
               }
             }}
           >
@@ -113,20 +134,20 @@ export function Toolbar({
               justifyContent: 'center',
               width: '36px',
               height: '36px',
-              borderRadius: '8px',
+              borderRadius: '9px',
               border: 'none',
               backgroundColor: 'transparent',
-              color: '#94a3b8',
+              color: 'rgba(255, 255, 255, 0.7)',
               cursor: 'pointer',
-              transition: 'background-color 0.15s, color 0.15s, transform 0.1s',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
               e.currentTarget.style.color = '#ffffff';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#94a3b8';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
             }}
           >
             <ImageIcon size={18} />
@@ -140,8 +161,8 @@ export function Toolbar({
             style={{
               width: '1px',
               height: '20px',
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              margin: '0 2px',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              margin: '0 3px',
             }}
           />
           <button
@@ -154,23 +175,23 @@ export function Toolbar({
               justifyContent: 'center',
               width: '36px',
               height: '36px',
-              borderRadius: '8px',
+              borderRadius: '9px',
               border: 'none',
               backgroundColor: 'transparent',
-              color: canUndo ? '#94a3b8' : 'rgba(148, 163, 184, 0.35)',
+              color: canUndo ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.25)',
               cursor: canUndo ? 'pointer' : 'not-allowed',
-              transition: 'background-color 0.15s, color 0.15s, transform 0.1s',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onMouseEnter={(e) => {
               if (canUndo) {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                 e.currentTarget.style.color = '#ffffff';
               }
             }}
             onMouseLeave={(e) => {
               if (canUndo) {
                 e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#94a3b8';
+                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
               }
             }}
           >

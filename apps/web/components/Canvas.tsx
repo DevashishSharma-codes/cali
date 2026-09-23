@@ -9,6 +9,7 @@ import { deleteImageFromSupabase, uploadImageToSupabase } from '../lib/supabase'
 import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
 import { StyleSidebar } from './StyleSidebar';
+import { ZoomControls } from './ZoomControls';
 import { Loader2 } from 'lucide-react';
 
 export function Canvas({ roomId }: { roomId: string | number }) {
@@ -21,6 +22,25 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
+
+  // Viewport / Camera Pan and Zoom state
+  const [panX, setPanX] = useState<number>(0);
+  const [panY, setPanY] = useState<number>(0);
+  const [zoom, setZoom] = useState<number>(1);
+  const panRef = useRef<{ panX: number; panY: number; zoom: number }>({ panX: 0, panY: 0, zoom: 1 });
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ startX: number; startY: number; startPanX: number; startPanY: number }>({
+    startX: 0,
+    startY: 0,
+    startPanX: 0,
+    startPanY: 0,
+  });
+
+  // Keep panRef synchronized for wheel/animation events
+  useEffect(() => {
+    panRef.current = { panX, panY, zoom };
+  }, [panX, panY, zoom]);
 
   // Style attributes state
   const [strokeColor, setStrokeColor] = useState<string>('#ffffff');
@@ -43,6 +63,60 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   const { socket, loading } = useSocket();
 
+  // Screen-to-World and World-to-Screen coordinate transformation
+  const screenToWorld = useCallback(
+    (screenX: number, screenY: number) => {
+      return {
+        x: (screenX - panX) / zoom,
+        y: (screenY - panY) / zoom,
+      };
+    },
+    [panX, panY, zoom]
+  );
+
+  const worldToScreen = useCallback(
+    (worldX: number, worldY: number) => {
+      return {
+        x: worldX * zoom + panX,
+        y: worldY * zoom + panY,
+      };
+    },
+    [panX, panY, zoom]
+  );
+
+  // Zoom control actions
+  const handleZoomIn = useCallback(() => {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    setZoom((prevZoom) => {
+      const newZoom = Math.min(5.0, prevZoom * 1.15);
+      const mouseWorldX = (centerX - panRef.current.panX) / prevZoom;
+      const mouseWorldY = (centerY - panRef.current.panY) / prevZoom;
+      setPanX(centerX - mouseWorldX * newZoom);
+      setPanY(centerY - mouseWorldY * newZoom);
+      return newZoom;
+    });
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    setZoom((prevZoom) => {
+      const newZoom = Math.max(0.1, prevZoom / 1.15);
+      const mouseWorldX = (centerX - panRef.current.panX) / prevZoom;
+      const mouseWorldY = (centerY - panRef.current.panY) / prevZoom;
+      setPanX(centerX - mouseWorldX * newZoom);
+      setPanY(centerY - mouseWorldY * newZoom);
+      return newZoom;
+    });
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoom(1);
+    setPanX(0);
+    setPanY(0);
+  }, []);
+
   // Load canvas background preference from localStorage
   useEffect(() => {
     try {
@@ -58,6 +132,75 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     } catch (e) {}
   }, []);
 
+  // Keyboard events: Spacebar pan and Zoom shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isInput = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
+      if (e.code === 'Space' && !isInput) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        handleZoomIn();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+        e.preventDefault();
+        handleZoomOut();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        handleResetZoom();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [handleZoomIn, handleZoomOut, handleResetZoom]);
+
+  // Non-passive wheel event listener for 2-finger trackpad swipe, mouse scroll pan, and pinch zoom
+  useEffect(() => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      if (e.ctrlKey || e.metaKey) {
+        // Pinch-to-zoom or Ctrl+Wheel centered around cursor
+        const zoomDelta = -e.deltaY * 0.005;
+        setZoom((prevZoom) => {
+          const newZoom = Math.min(5.0, Math.max(0.1, prevZoom * (1 + zoomDelta)));
+          const { panX: currentPanX, panY: currentPanY } = panRef.current;
+          const mouseWorldX = (e.clientX - currentPanX) / prevZoom;
+          const mouseWorldY = (e.clientY - currentPanY) / prevZoom;
+          const newPanX = e.clientX - mouseWorldX * newZoom;
+          const newPanY = e.clientY - mouseWorldY * newZoom;
+          setPanX(newPanX);
+          setPanY(newPanY);
+          return newZoom;
+        });
+      } else {
+        // Infinite 2-finger trackpad swipe or mouse wheel pan
+        setPanX((prev) => prev - e.deltaX);
+        setPanY((prev) => prev - e.deltaY);
+      }
+    };
+
+    canvasEl.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      canvasEl.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
   // Focus textarea when text editing starts
   useEffect(() => {
     if (editingText && textareaRef.current) {
@@ -70,7 +213,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     shapesRef.current = shapes;
   }, [shapes]);
 
-  // Commit typed text as a new TextShape
+  // Commit typed text as a new TextShape in world coordinates
   const commitText = useCallback(() => {
     if (!editingText) return;
     const trimmed = editingText.text.trim();
@@ -101,10 +244,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   // Double click anywhere on canvas to create/type text
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (selectedTool === 'hand' || isSpacePressed) return;
     if (editingText) {
       commitText();
     }
-    setEditingText({ x: e.clientX, y: e.clientY, text: '' });
+    const worldPos = screenToWorld(e.clientX, e.clientY);
+    setEditingText({ x: worldPos.x, y: worldPos.y, text: '' });
   };
 
   const startParticleLoop = useCallback(() => {
@@ -133,7 +278,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         undefined,
         eraserPosRef.current,
         particles,
-        canvasBackground
+        canvasBackground,
+        panRef.current.panX,
+        panRef.current.panY,
+        panRef.current.zoom
       );
 
       if (particles.length > 0 || eraserPosRef.current !== null) {
@@ -146,7 +294,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     animFrameRef.current = requestAnimationFrame(loop);
   }, [canvasBackground]);
 
-  const spawnParticles = useCallback((x: number, y: number, count = 4, burst = false) => {
+  const spawnParticles = useCallback((worldX: number, worldY: number, count = 4, burst = false) => {
     const colors = [
       'rgba(255, 255, 255, OPACITY)',
       'rgba(248, 250, 252, OPACITY)',
@@ -158,8 +306,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       const angle = Math.random() * Math.PI * 2;
       const speed = burst ? Math.random() * 3.5 + 1.5 : Math.random() * 1.5 + 0.5;
       particlesRef.current.push({
-        x: x + (Math.random() - 0.5) * 14,
-        y: y + (Math.random() - 0.5) * 14,
+        x: worldX + (Math.random() - 0.5) * 14,
+        y: worldY + (Math.random() - 0.5) * 14,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         size: Math.random() * 3 + 1.5,
@@ -204,21 +352,31 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   }, [socket, loading, roomId]);
 
-  // 3. Set canvas dimensions and redraw whenever shapes or canvasBackground updates
+  // 3. Set canvas dimensions and redraw whenever shapes, pan, or zoom updates
   useEffect(() => {
     if (canvasRef.current) {
       canvasRef.current.width = window.innerWidth;
       canvasRef.current.height = window.innerHeight;
-      draw(canvasRef.current, shapes, undefined, undefined, undefined, canvasBackground);
+      draw(canvasRef.current, shapes, undefined, undefined, undefined, canvasBackground, panX, panY, zoom);
     }
-  }, [shapes, canvasBackground]);
+  }, [shapes, canvasBackground, panX, panY, zoom]);
 
   // Redraw when custom sketchy web fonts finish loading
   useEffect(() => {
     if (typeof document !== 'undefined' && document.fonts) {
       document.fonts.ready.then(() => {
         if (canvasRef.current) {
-          draw(canvasRef.current, shapesRef.current, undefined, undefined, undefined, canvasBackground);
+          draw(
+            canvasRef.current,
+            shapesRef.current,
+            undefined,
+            undefined,
+            undefined,
+            canvasBackground,
+            panRef.current.panX,
+            panRef.current.panY,
+            panRef.current.zoom
+          );
         }
       });
     }
@@ -262,9 +420,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo]);
 
-  // Upload image to Supabase and place on canvas instantly
+  // Upload image to Supabase and place on canvas at world coordinates
   const uploadAndAddImage = useCallback(
-    (file: File | Blob, x?: number, y?: number) => {
+    (file: File | Blob, screenX?: number, screenY?: number) => {
       try {
         const localUrl = URL.createObjectURL(file);
         const img = new Image();
@@ -276,20 +434,21 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           const width = Math.round((img.naturalWidth || 300) * scale);
           const height = Math.round((img.naturalHeight || 200) * scale);
 
-          const posX = x !== undefined ? x : Math.max(20, Math.round((window.innerWidth - width) / 2));
-          const posY = y !== undefined ? y : Math.max(60, Math.round((window.innerHeight - height) / 2));
+          const targetScreenX = screenX !== undefined ? screenX : Math.max(20, Math.round((window.innerWidth - width) / 2));
+          const targetScreenY = screenY !== undefined ? screenY : Math.max(60, Math.round((window.innerHeight - height) / 2));
+          const worldPos = screenToWorld(targetScreenX, targetScreenY);
 
           const localImageShape: Shape = {
             type: 'image',
             src: localUrl,
-            x: posX,
-            y: posY,
+            x: worldPos.x,
+            y: worldPos.y,
             width,
             height,
             opacity,
           };
 
-          // 1. Instantly display image on canvas without waiting for network upload
+          // 1. Instantly display image on canvas
           setShapes((prev) => [...prev, localImageShape]);
 
           // 2. Upload to Supabase bucket in the background
@@ -328,7 +487,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         console.error('Error creating image preview:', err);
       }
     },
-    [roomId, socket, opacity]
+    [roomId, socket, opacity, screenToWorld]
   );
 
   // Clipboard paste event listener (Ctrl+V / Cmd+V)
@@ -372,19 +531,19 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Erase shapes touched by cursor coordinates
+  // Erase shapes touched by world coordinates
   const eraseAt = useCallback(
-    (x: number, y: number) => {
-      eraserPosRef.current = { x, y };
-      spawnParticles(x, y, 3, false);
+    (worldX: number, worldY: number) => {
+      eraserPosRef.current = { x: worldX, y: worldY };
+      spawnParticles(worldX, worldY, 3, false);
       startParticleLoop();
 
       setShapes((prev) => {
-        const toDelete = prev.filter((shape) => isPointNearShape(x, y, shape, 18));
+        const toDelete = prev.filter((shape) => isPointNearShape(worldX, worldY, shape, 18 / zoom));
         if (toDelete.length === 0) return prev;
 
         // Sparkle / dust burst when shapes are rubbed off
-        spawnParticles(x, y, 16, true);
+        spawnParticles(worldX, worldY, 16, true);
 
         toDelete.forEach((shape) => {
           if (shape.type === 'image') {
@@ -407,10 +566,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         return prev.filter((shape) => !toDelete.includes(shape));
       });
     },
-    [roomId, socket, spawnParticles, startParticleLoop]
+    [roomId, socket, spawnParticles, startParticleLoop, zoom]
   );
 
-  // Helper to construct a shape object from coordinates and current styles
+  // Helper to construct a shape object from world coordinates and current styles
   const createShape = (tool: Tool, x1: number, y1: number, x2: number, y2: number): Shape => {
     const commonStyle = {
       strokeColor,
@@ -478,50 +637,83 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
   };
 
-  // Mouse down: start drawing, erase, or open text tool
+  // Mouse down: handle panning, drawing, erasing, or text tool
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isSpacePressed || selectedTool === 'hand' || e.button === 1) {
+      setIsPanning(true);
+      panStartRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPanX: panX,
+        startPanY: panY,
+      };
+      return;
+    }
+
     if (editingText) {
       commitText();
     }
 
+    const worldPos = screenToWorld(e.clientX, e.clientY);
+
     if (selectedTool === 'text') {
-      setEditingText({ x: e.clientX, y: e.clientY, text: '' });
+      setEditingText({ x: worldPos.x, y: worldPos.y, text: '' });
       return;
     }
 
     setIsDrawing(true);
-    setStartX(e.clientX);
-    setStartY(e.clientY);
+    setStartX(worldPos.x);
+    setStartY(worldPos.y);
 
     if (selectedTool === 'eraser') {
-      eraseAt(e.clientX, e.clientY);
+      eraseAt(worldPos.x, worldPos.y);
     } else if (selectedTool === 'pencil') {
-      pencilPointsRef.current = [{ x: e.clientX, y: e.clientY }];
+      pencilPointsRef.current = [worldPos];
       if (canvasRef.current) {
-        draw(canvasRef.current, [
-          ...shapes,
-          {
-            type: 'pencil',
-            points: pencilPointsRef.current,
-            strokeColor,
-            strokeWidth,
-            roughness,
-            opacity,
-            strokeStyle,
-          },
-        ], undefined, undefined, undefined, canvasBackground);
+        draw(
+          canvasRef.current,
+          [
+            ...shapes,
+            {
+              type: 'pencil',
+              points: pencilPointsRef.current,
+              strokeColor,
+              strokeWidth,
+              roughness,
+              opacity,
+              strokeStyle,
+            },
+          ],
+          undefined,
+          undefined,
+          undefined,
+          canvasBackground,
+          panX,
+          panY,
+          zoom
+        );
       }
     }
   };
 
-  // Mouse move: live preview of shape currently being drawn or continuous erase
+  // Mouse move: handle viewport panning, drawing preview, or continuous erasing
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isPanning) {
+      const dx = e.clientX - panStartRef.current.startX;
+      const dy = e.clientY - panStartRef.current.startY;
+      setPanX(panStartRef.current.startPanX + dx);
+      setPanY(panStartRef.current.startPanY + dy);
+      return;
+    }
+
     if (!isDrawing || !canvasRef.current || selectedTool === 'text') return;
 
+    const worldPos = screenToWorld(e.clientX, e.clientY);
+
     if (selectedTool === 'eraser') {
-      eraseAt(e.clientX, e.clientY);
+      eraseAt(worldPos.x, worldPos.y);
     } else if (selectedTool === 'pencil') {
-      pencilPointsRef.current.push({ x: e.clientX, y: e.clientY });
+      pencilPointsRef.current.push(worldPos);
       const previewShape: Shape = {
         type: 'pencil',
         points: [...pencilPointsRef.current],
@@ -531,15 +723,40 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         opacity,
         strokeStyle,
       };
-      draw(canvasRef.current, [...shapes, previewShape], undefined, undefined, undefined, canvasBackground);
+      draw(
+        canvasRef.current,
+        [...shapes, previewShape],
+        undefined,
+        undefined,
+        undefined,
+        canvasBackground,
+        panX,
+        panY,
+        zoom
+      );
     } else {
-      const previewShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
-      draw(canvasRef.current, [...shapes, previewShape], undefined, undefined, undefined, canvasBackground);
+      const previewShape = createShape(selectedTool, startX, startY, worldPos.x, worldPos.y);
+      draw(
+        canvasRef.current,
+        [...shapes, previewShape],
+        undefined,
+        undefined,
+        undefined,
+        canvasBackground,
+        panX,
+        panY,
+        zoom
+      );
     }
   };
 
-  // Mouse up: finalize shape, update state, and broadcast over WebSocket
+  // Mouse up: finalize shape or stop panning
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
+
     if (!isDrawing || selectedTool === 'text') return;
     setIsDrawing(false);
 
@@ -549,6 +766,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       return;
     }
 
+    const worldPos = screenToWorld(e.clientX, e.clientY);
     let newShape: Shape;
     if (selectedTool === 'pencil') {
       newShape = {
@@ -562,7 +780,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       };
       pencilPointsRef.current = [];
     } else {
-      newShape = createShape(selectedTool, startX, startY, e.clientX, e.clientY);
+      newShape = createShape(selectedTool, startX, startY, worldPos.x, worldPos.y);
     }
 
     setShapes((prev) => [...prev, newShape]);
@@ -579,6 +797,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   };
 
   const handleMouseLeave = () => {
+    if (isPanning) {
+      setIsPanning(false);
+    }
     if (selectedTool === 'eraser') {
       eraserPosRef.current = null;
       startParticleLoop();
@@ -586,6 +807,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   };
 
   const getCursor = () => {
+    if (isPanning) {
+      return 'grabbing';
+    }
+    if (isSpacePressed || selectedTool === 'hand') {
+      return 'grab';
+    }
     if (selectedTool === 'text') {
       return 'text';
     }
@@ -597,6 +824,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
     return 'crosshair';
   };
+
+  const textScreenPos = editingText ? worldToScreen(editingText.x, editingText.y) : null;
 
   return (
     <div
@@ -637,7 +866,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         setCanvasBackground={handleSetCanvasBackground}
       />
 
-      {editingText && (
+      <ZoomControls
+        zoom={zoom}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
+      />
+
+      {editingText && textScreenPos && (
         <textarea
           ref={textareaRef}
           value={editingText.text}
@@ -654,8 +890,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           rows={Math.max(1, editingText.text.split('\n').length)}
           style={{
             position: 'absolute',
-            left: `${editingText.x}px`,
-            top: `${editingText.y}px`,
+            left: `${textScreenPos.x}px`,
+            top: `${textScreenPos.y}px`,
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top left',
             background: 'rgba(23, 23, 28, 0.85)',
             color: strokeColor || '#ffffff',
             fontFamily: '"Architects Daughter", "Caveat", "Kalam", "Patrick Hand", "Comic Sans MS", cursive, sans-serif',

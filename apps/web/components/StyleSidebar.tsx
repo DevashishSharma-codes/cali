@@ -5,12 +5,6 @@ import { FillStyle, Sloppiness, StrokeStyle } from '../lib/types';
 import {
   ChevronLeft,
   ChevronRight,
-  Minus,
-  Maximize2,
-  Grid,
-  Hash,
-  Square,
-  Sparkles,
   Palette,
   Sliders,
 } from 'lucide-react';
@@ -36,11 +30,11 @@ interface StyleSidebarProps {
 
 const STROKE_COLORS = [
   '#ffffff',
-  '#ff8787',
-  '#69db7c',
-  '#4dabf7',
-  '#ffa94d',
-  '#da77f2',
+  '#ff6b6b',
+  '#51cf66',
+  '#339af0',
+  '#fcc419',
+  '#cc5de8',
   '#868e96',
 ];
 
@@ -52,7 +46,6 @@ const BG_COLORS = [
   '#228be6',
   '#fd7e14',
   '#be4bdb',
-  '#fab005',
 ];
 
 const CANVAS_BG_COLORS = [
@@ -94,36 +87,57 @@ export function StyleSidebar({
         zIndex: 90,
         display: 'flex',
         alignItems: 'flex-start',
-        gap: '6px',
+        gap: '8px',
       }}
     >
-      {/* Main Glassmorphic Sidebar Card */}
+      {/* Main MacBook Glassmorphic Sidebar Card */}
       {!isCollapsed && (
         <div
           style={{
-            width: '240px',
-            maxHeight: 'calc(100vh - 36px)',
+            width: '256px',
+            maxHeight: 'calc(100vh - 32px)',
             overflowY: 'auto',
-            backgroundColor: 'rgba(26, 26, 32, 0.94)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            borderRadius: '14px',
-            padding: '14px',
-            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.55)',
+            overflowX: 'hidden',
+            backgroundColor: 'rgba(24, 24, 30, 0.76)',
+            backdropFilter: 'blur(32px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+            border: '1px solid rgba(255, 255, 255, 0.14)',
+            borderRadius: '18px',
+            padding: '16px',
+            boxShadow:
+              '0 24px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22)',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
             color: '#f8fafc',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontFamily:
+              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
             userSelect: 'none',
+            scrollbarWidth: 'none',
           }}
         >
           {/* Section: Stroke Color */}
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '8px',
+              }}
+            >
               Stroke
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                gap: '6px',
+                alignItems: 'center',
+              }}
+            >
               {STROKE_COLORS.map((color) => {
                 const isSelected = strokeColor.toLowerCase() === color.toLowerCase();
                 return (
@@ -131,15 +145,19 @@ export function StyleSidebar({
                     key={color}
                     onClick={() => setStrokeColor(color)}
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '23px',
+                      height: '23px',
                       borderRadius: '6px',
                       backgroundColor: color,
-                      border: isSelected ? '2px solid #818cf8' : '1px solid rgba(255, 255, 255, 0.2)',
-                      boxShadow: isSelected ? '0 0 8px rgba(129, 140, 248, 0.6)' : 'none',
+                      border: isSelected
+                        ? '2px solid #818cf8'
+                        : '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: isSelected
+                        ? '0 0 10px rgba(129, 140, 248, 0.75), inset 0 1px 1px rgba(255,255,255,0.3)'
+                        : '0 1px 3px rgba(0, 0, 0, 0.3)',
                       cursor: 'pointer',
-                      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-                      transition: 'all 0.15s ease',
+                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       padding: 0,
                     }}
                     title={color}
@@ -149,21 +167,23 @@ export function StyleSidebar({
               {/* Custom Stroke Color Picker */}
               <label
                 style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '23px',
+                  height: '23px',
                   borderRadius: '6px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px dashed rgba(255, 255, 255, 0.3)',
+                  border: '1px dashed rgba(255, 255, 255, 0.28)',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
+                  transition: 'all 0.15s ease',
                 }}
                 title="Custom color"
               >
-                <Palette size={12} color="#94a3b8" />
+                <Palette size={12} color="rgba(255, 255, 255, 0.7)" />
                 <input
                   type="color"
                   value={strokeColor}
@@ -182,10 +202,26 @@ export function StyleSidebar({
 
           {/* Section: Background / Fill Color */}
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '8px',
+              }}
+            >
               Background
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                gap: '6px',
+                alignItems: 'center',
+              }}
+            >
               {BG_COLORS.map((color) => {
                 const isSelected = backgroundColor.toLowerCase() === color.toLowerCase();
                 const isTransparent = color === 'transparent';
@@ -194,15 +230,19 @@ export function StyleSidebar({
                     key={color}
                     onClick={() => setBackgroundColor(color)}
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '23px',
+                      height: '23px',
                       borderRadius: '6px',
-                      backgroundColor: isTransparent ? '#1e1e24' : color,
-                      border: isSelected ? '2px solid #818cf8' : '1px solid rgba(255, 255, 255, 0.2)',
-                      boxShadow: isSelected ? '0 0 8px rgba(129, 140, 248, 0.6)' : 'none',
+                      backgroundColor: isTransparent ? 'rgba(30, 30, 38, 0.8)' : color,
+                      border: isSelected
+                        ? '2px solid #818cf8'
+                        : '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: isSelected
+                        ? '0 0 10px rgba(129, 140, 248, 0.75), inset 0 1px 1px rgba(255,255,255,0.3)'
+                        : '0 1px 3px rgba(0, 0, 0, 0.3)',
                       cursor: 'pointer',
-                      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-                      transition: 'all 0.15s ease',
+                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       padding: 0,
                       position: 'relative',
                       display: 'flex',
@@ -214,10 +254,11 @@ export function StyleSidebar({
                     {isTransparent && (
                       <div
                         style={{
-                          width: '18px',
+                          width: '16px',
                           height: '2px',
                           backgroundColor: '#ef4444',
                           transform: 'rotate(-45deg)',
+                          borderRadius: '1px',
                         }}
                       />
                     )}
@@ -227,21 +268,23 @@ export function StyleSidebar({
               {/* Custom Fill Color Picker */}
               <label
                 style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '23px',
+                  height: '23px',
                   borderRadius: '6px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px dashed rgba(255, 255, 255, 0.3)',
+                  border: '1px dashed rgba(255, 255, 255, 0.28)',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
+                  transition: 'all 0.15s ease',
                 }}
                 title="Custom color"
               >
-                <Palette size={12} color="#94a3b8" />
+                <Palette size={12} color="rgba(255, 255, 255, 0.7)" />
                 <input
                   type="color"
                   value={backgroundColor === 'transparent' ? '#6366f1' : backgroundColor}
@@ -261,10 +304,28 @@ export function StyleSidebar({
           {/* Section: Fill Style */}
           {backgroundColor !== 'transparent' && (
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'rgba(255, 255, 255, 0.55)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  marginBottom: '8px',
+                }}
+              >
                 Fill Style
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                  padding: '3px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  gap: '2px',
+                }}
+              >
                 {[
                   { type: 'hachure' as FillStyle, label: 'Hachure', icon: '///' },
                   { type: 'cross-hatch' as FillStyle, label: 'Cross', icon: '###' },
@@ -278,15 +339,19 @@ export function StyleSidebar({
                       onClick={() => setFillStyle(item.type)}
                       title={item.label}
                       style={{
-                        padding: '6px 0',
+                        flex: 1,
+                        height: '28px',
                         fontSize: '11px',
                         fontWeight: 600,
-                        borderRadius: '6px',
+                        borderRadius: '7px',
                         border: 'none',
-                        backgroundColor: isSelected ? '#6366f1' : 'rgba(255, 255, 255, 0.06)',
-                        color: isSelected ? '#ffffff' : '#94a3b8',
+                        backgroundColor: isSelected ? '#6366f1' : 'transparent',
+                        color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
+                        boxShadow: isSelected
+                          ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
+                          : 'none',
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease',
+                        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                       }}
                     >
                       {item.icon}
@@ -299,10 +364,28 @@ export function StyleSidebar({
 
           {/* Section: Stroke Width */}
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '8px',
+              }}
+            >
               Stroke width
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                padding: '3px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                gap: '2px',
+              }}
+            >
               {[
                 { width: 2, label: 'Thin', barHeight: 2 },
                 { width: 4, label: 'Medium', barHeight: 4 },
@@ -315,22 +398,26 @@ export function StyleSidebar({
                     onClick={() => setStrokeWidth(item.width)}
                     title={item.label}
                     style={{
-                      height: '32px',
+                      flex: 1,
+                      height: '28px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderRadius: '6px',
+                      borderRadius: '7px',
                       border: 'none',
-                      backgroundColor: isSelected ? '#6366f1' : 'rgba(255, 255, 255, 0.06)',
+                      backgroundColor: isSelected ? '#6366f1' : 'transparent',
+                      boxShadow: isSelected
+                        ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
+                        : 'none',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
+                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                   >
                     <div
                       style={{
-                        width: '20px',
+                        width: '22px',
                         height: `${item.barHeight}px`,
-                        backgroundColor: isSelected ? '#ffffff' : '#94a3b8',
+                        backgroundColor: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
                         borderRadius: '2px',
                       }}
                     />
@@ -342,10 +429,28 @@ export function StyleSidebar({
 
           {/* Section: Stroke Style */}
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '8px',
+              }}
+            >
               Stroke style
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                padding: '3px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                gap: '2px',
+              }}
+            >
               {[
                 { style: 'solid' as StrokeStyle, label: 'Solid', dash: 'solid' },
                 { style: 'dashed' as StrokeStyle, label: 'Dashed', dash: 'dashed' },
@@ -358,22 +463,26 @@ export function StyleSidebar({
                     onClick={() => setStrokeStyle(item.style)}
                     title={item.label}
                     style={{
-                      height: '32px',
+                      flex: 1,
+                      height: '28px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderRadius: '6px',
+                      borderRadius: '7px',
                       border: 'none',
-                      backgroundColor: isSelected ? '#6366f1' : 'rgba(255, 255, 255, 0.06)',
+                      backgroundColor: isSelected ? '#6366f1' : 'transparent',
+                      boxShadow: isSelected
+                        ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
+                        : 'none',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
+                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                   >
                     <div
                       style={{
-                        width: '22px',
+                        width: '24px',
                         height: 0,
-                        borderTop: `2px ${item.dash} ${isSelected ? '#ffffff' : '#94a3b8'}`,
+                        borderTop: `2px ${item.dash} ${isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)'}`,
                       }}
                     />
                   </button>
@@ -384,10 +493,28 @@ export function StyleSidebar({
 
           {/* Section: Sloppiness / Roughness */}
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '8px',
+              }}
+            >
               Sloppiness
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                padding: '3px',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                gap: '2px',
+              }}
+            >
               {[
                 { value: 0, label: 'Architect (Clean)', icon: '—' },
                 { value: 1.2, label: 'Artist (Hand-drawn)', icon: '∿' },
@@ -400,18 +527,22 @@ export function StyleSidebar({
                     onClick={() => setRoughness(item.value)}
                     title={item.label}
                     style={{
-                      height: '32px',
+                      flex: 1,
+                      height: '28px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '15px',
                       fontWeight: 700,
-                      borderRadius: '6px',
+                      borderRadius: '7px',
                       border: 'none',
-                      backgroundColor: isSelected ? '#6366f1' : 'rgba(255, 255, 255, 0.06)',
-                      color: isSelected ? '#ffffff' : '#94a3b8',
+                      backgroundColor: isSelected ? '#6366f1' : 'transparent',
+                      color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
+                      boxShadow: isSelected
+                        ? '0 2px 8px rgba(99, 102, 241, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25)'
+                        : 'none',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
+                      transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                   >
                     {item.icon}
@@ -430,14 +561,25 @@ export function StyleSidebar({
                 alignItems: 'center',
                 fontSize: '11px',
                 fontWeight: 600,
-                color: '#94a3b8',
+                color: 'rgba(255, 255, 255, 0.55)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                letterSpacing: '0.06em',
                 marginBottom: '8px',
               }}
             >
               <span>Opacity</span>
-              <span style={{ color: '#ffffff', fontSize: '11px', fontWeight: 500 }}>{opacity}%</span>
+              <span
+                style={{
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                }}
+              >
+                {opacity}%
+              </span>
             </div>
             <input
               type="range"
@@ -448,9 +590,9 @@ export function StyleSidebar({
               onChange={(e) => setOpacity(Number(e.target.value))}
               style={{
                 width: '100%',
-                height: '4px',
-                borderRadius: '2px',
-                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                height: '5px',
+                borderRadius: '9999px',
+                backgroundColor: 'rgba(255, 255, 255, 0.14)',
                 outline: 'none',
                 cursor: 'pointer',
                 accentColor: '#6366f1',
@@ -460,10 +602,26 @@ export function StyleSidebar({
 
           {/* Section: Canvas Background */}
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: '8px',
+              }}
+            >
               Canvas background
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(8, 1fr)',
+                gap: '6px',
+                alignItems: 'center',
+              }}
+            >
               {CANVAS_BG_COLORS.map((color) => {
                 const isSelected = canvasBackground.toLowerCase() === color.toLowerCase();
                 return (
@@ -471,15 +629,19 @@ export function StyleSidebar({
                     key={color}
                     onClick={() => setCanvasBackground(color)}
                     style={{
-                      width: '24px',
-                      height: '24px',
+                      width: '23px',
+                      height: '23px',
                       borderRadius: '6px',
                       backgroundColor: color,
-                      border: isSelected ? '2px solid #818cf8' : '1px solid rgba(255, 255, 255, 0.2)',
-                      boxShadow: isSelected ? '0 0 8px rgba(129, 140, 248, 0.6)' : 'none',
+                      border: isSelected
+                        ? '2px solid #818cf8'
+                        : '1px solid rgba(255, 255, 255, 0.18)',
+                      boxShadow: isSelected
+                        ? '0 0 10px rgba(129, 140, 248, 0.75), inset 0 1px 1px rgba(255,255,255,0.3)'
+                        : '0 1px 3px rgba(0, 0, 0, 0.3)',
                       cursor: 'pointer',
-                      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-                      transition: 'all 0.15s ease',
+                      transform: isSelected ? 'scale(1.12)' : 'scale(1)',
+                      transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                       padding: 0,
                     }}
                     title={color}
@@ -489,21 +651,23 @@ export function StyleSidebar({
               {/* Custom Canvas Background Picker */}
               <label
                 style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '23px',
+                  height: '23px',
                   borderRadius: '6px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px dashed rgba(255, 255, 255, 0.3)',
+                  border: '1px dashed rgba(255, 255, 255, 0.28)',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
                   position: 'relative',
                   overflow: 'hidden',
+                  transition: 'all 0.15s ease',
                 }}
                 title="Custom Canvas BG"
               >
-                <Palette size={12} color="#94a3b8" />
+                <Palette size={12} color="rgba(255, 255, 255, 0.7)" />
                 <input
                   type="color"
                   value={canvasBackground}
@@ -522,35 +686,39 @@ export function StyleSidebar({
         </div>
       )}
 
-      {/* Collapse / Expand Toggle Button */}
+      {/* macOS Frosted Floating Capsule Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? 'Show Style Panel' : 'Hide Style Panel'}
         style={{
-          width: '28px',
-          height: '28px',
-          borderRadius: '8px',
-          backgroundColor: 'rgba(26, 26, 32, 0.9)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#94a3b8',
+          width: '32px',
+          height: '32px',
+          borderRadius: '10px',
+          backgroundColor: 'rgba(24, 24, 30, 0.76)',
+          backdropFilter: 'blur(24px) saturate(190%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(190%)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          color: 'rgba(255, 255, 255, 0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          transition: 'all 0.15s ease',
+          boxShadow:
+            '0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+          transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = '#ffffff';
-          e.currentTarget.style.backgroundColor = 'rgba(40, 40, 50, 0.95)';
+          e.currentTarget.style.backgroundColor = 'rgba(36, 36, 46, 0.88)';
+          e.currentTarget.style.transform = 'scale(1.05)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.color = '#94a3b8';
-          e.currentTarget.style.backgroundColor = 'rgba(26, 26, 32, 0.9)';
+          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+          e.currentTarget.style.backgroundColor = 'rgba(24, 24, 30, 0.76)';
+          e.currentTarget.style.transform = 'scale(1)';
         }}
       >
-        {isCollapsed ? <Sliders size={14} /> : <ChevronLeft size={14} />}
+        {isCollapsed ? <Sliders size={15} /> : <ChevronLeft size={15} />}
       </button>
     </div>
   );

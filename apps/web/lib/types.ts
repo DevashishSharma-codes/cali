@@ -1,8 +1,23 @@
-export type Tool = 'pencil' | 'rect' | 'circle' | 'diamond' | 'line' | 'arrow' | 'text' | 'eraser';
+export type Tool =
+  | 'hand'
+  | 'pencil'
+  | 'rect'
+  | 'circle'
+  | 'diamond'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'eraser';
 
 export type FillStyle = 'transparent' | 'solid' | 'hachure' | 'cross-hatch' | 'dots';
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
 export type Sloppiness = 'architect' | 'artist' | 'cartoonist';
+
+export interface Viewport {
+  panX: number;
+  panY: number;
+  zoom: number;
+}
 
 export interface ShapeStyle {
   strokeColor?: string;

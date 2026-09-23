@@ -50,15 +50,23 @@ export function draw(
   onImageLoaded?: () => void,
   eraserHalo?: { x: number; y: number } | null,
   particles?: EraserParticle[],
-  canvasBackground?: string
+  canvasBackground?: string,
+  panX: number = 0,
+  panY: number = 0,
+  zoom: number = 1
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  // Clear & fill canvas with background color
+  // Clear & fill canvas with background color across full viewport
   const bg = canvasBackground || "#121212";
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Apply camera transformation (pan and zoom)
+  ctx.save();
+  ctx.translate(panX, panY);
+  ctx.scale(zoom, zoom);
 
   // Initialize roughjs
   const rc = rough.canvas(canvas);
@@ -82,7 +90,7 @@ export function draw(
           if (onImageLoaded) {
             onImageLoaded();
           } else {
-            draw(canvas, shapes, onImageLoaded, eraserHalo, particles, canvasBackground);
+            draw(canvas, shapes, onImageLoaded, eraserHalo, particles, canvasBackground, panX, panY, zoom);
           }
         };
         imageCache.set(shape.src, img);
@@ -154,7 +162,7 @@ export function draw(
     ctx.restore();
   });
 
-  // Render eraser shavings/dust particles
+  // Render eraser shavings/dust particles in world coordinates
   if (particles && particles.length > 0) {
     ctx.save();
     particles.forEach((p) => {
@@ -166,7 +174,7 @@ export function draw(
     ctx.restore();
   }
 
-  // Render active eraser rubbing halo
+  // Render active eraser rubbing halo in world coordinates
   if (eraserHalo) {
     ctx.save();
     const grad = ctx.createRadialGradient(
@@ -175,7 +183,7 @@ export function draw(
       0,
       eraserHalo.x,
       eraserHalo.y,
-      22
+      22 / zoom
     );
     grad.addColorStop(0, "rgba(255, 255, 255, 0.32)");
     grad.addColorStop(0.5, "rgba(255, 255, 255, 0.12)");
@@ -183,16 +191,19 @@ export function draw(
 
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(eraserHalo.x, eraserHalo.y, 22, 0, Math.PI * 2);
+    ctx.arc(eraserHalo.x, eraserHalo.y, 22 / zoom, 0, Math.PI * 2);
     ctx.fill();
 
     // Soft dashed friction perimeter
     ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1.5 / zoom;
+    ctx.setLineDash([3 / zoom, 3 / zoom]);
     ctx.beginPath();
-    ctx.arc(eraserHalo.x, eraserHalo.y, 16, 0, Math.PI * 2);
+    ctx.arc(eraserHalo.x, eraserHalo.y, 16 / zoom, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
+
+  // Restore camera translation & scaling
+  ctx.restore();
 }
