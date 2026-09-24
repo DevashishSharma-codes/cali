@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+const WS_URL = (process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080").replace(/\/+$/, "");
 
 export function useSocket() {
   const [loading, setLoading] = useState(true);

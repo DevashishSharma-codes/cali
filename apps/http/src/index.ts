@@ -5,9 +5,17 @@ import { JWT_SECRET } from "@repo/backend/config";
 import { middleware } from "./middleware.js";
 import { CreateRoomSchema } from "@repo/common/types";
 import { prismaClient } from "@repo/db";
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.get("/", (req, res) => {
+    res.json({
+        status: "ok",
+        service: "cali-http-backend"
+    });
+});
 
 app.post("/room", middleware, async (req, res) => {
     const parsedData = CreateRoomSchema.safeParse(req.body);
@@ -112,6 +120,7 @@ app.put("/chats/:id", async (req, res) => {
     }
 });
 
-app.listen(3001, () => {
-    console.log('HTTP server is running on http://localhost:3001');
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`HTTP server is running on port ${PORT}`);
 });

@@ -3,7 +3,8 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import { prismaClient } from "@repo/db";
 
-const wss = new WebSocketServer({ port: 8080 });
+const port = Number(process.env.PORT) || 8080;
+const wss = new WebSocketServer({ port });
 
 interface User {
     ws: WebSocket;
@@ -13,7 +14,7 @@ interface User {
 
 const users: User[] = [];
 
-console.log('WebSocket server is running on ws://localhost:8080');
+console.log(`WebSocket server is running on port ${port}`);
 
 function checkUser(token: string): string | false {
     try {

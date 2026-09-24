@@ -1,6 +1,6 @@
 import { Shape } from "./types";
 
-const HTTP_URL = process.env.NEXT_PUBLIC_HTTP_URL || "http://localhost:3001";
+const HTTP_URL = (process.env.NEXT_PUBLIC_HTTP_URL || "http://localhost:3001").replace(/\/+$/, "");
 
 // 1. Fetch chat messages from the backend for a given room
 // 2. Parse the shape coordinates stored inside each chat's `message` field
