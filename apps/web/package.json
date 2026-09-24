@@ -11,6 +11,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.9.4",
     "@repo/common": "workspace:*",
     "@repo/ui": "workspace:*",
     "@supabase/supabase-js": "^2.117.0",

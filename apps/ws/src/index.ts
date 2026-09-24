@@ -1,25 +1,24 @@
 import { WebSocket, WebSocketServer } from "ws";
-const wss = new WebSocketServer({ port: 8080 });
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
-import { prismaClient, PrismaClient } from "@repo/db";
+import { prismaClient } from "@repo/db";
+
+const wss = new WebSocketServer({ port: 8080 });
+
 interface User {
     ws: WebSocket;
     userId: string;
     rooms: string[];
-
 }
 
 const users: User[] = [];
 
-
 console.log('WebSocket server is running on ws://localhost:8080');
 
-
-function checkUser(token: string) {
+function checkUser(token: string): string | false {
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-        if (!decoded.userId) {
+        if (!decoded || !decoded.userId) {
             return false;
         }
         return decoded.userId;
@@ -28,22 +27,81 @@ function checkUser(token: string) {
     }
 }
 
+async function ensureUserExists(userId: string) {
+    try {
+        await prismaClient.user.upsert({
+            where: { id: userId },
+            update: {},
+            create: {
+                id: userId,
+                email: `${userId}@picasso.app`,
+                name: "Picasso Collaborator",
+                password: "oauth_or_guest"
+            }
+        });
+    } catch (e) {
+        console.error("Error ensuring user exists:", e);
+    }
+}
+
+async function getOrCreateRoomId(roomIdentifier: string, adminId: string): Promise<number | null> {
+    try {
+        await ensureUserExists(adminId);
+        const numericId = Number(roomIdentifier);
+        if (!isNaN(numericId) && numericId > 0 && Number.isInteger(numericId)) {
+            const existing = await prismaClient.room.findUnique({
+                where: { id: numericId }
+            });
+            if (existing) return existing.id;
+            const created = await prismaClient.room.create({
+                data: {
+                    id: numericId,
+                    slug: `room-${numericId}`,
+                    adminId
+                }
+            });
+            return created.id;
+        } else {
+            // Slug string
+            const existing = await prismaClient.room.findUnique({
+                where: { slug: roomIdentifier }
+            });
+            if (existing) return existing.id;
+            const created = await prismaClient.room.create({
+                data: {
+                    slug: roomIdentifier,
+                    adminId
+                }
+            });
+            return created.id;
+        }
+    } catch (e) {
+        console.error("Error in getOrCreateRoomId:", e);
+        return null;
+    }
+}
 
 wss.on('connection', (ws, request) => {
-    console.log('A new client connected!');
+    console.log('A new client connected to WebSocket!');
     const url = request.url;
-    if (!url) {
-        return;
-    }
-    const queryParams = new URLSearchParams(url.split('?')[1]);
+    const queryParams = url ? new URLSearchParams(url.split('?')[1]) : new URLSearchParams();
     const token = queryParams.get('token');
-    const userId = checkUser(token ?? "")
-    if (!userId) {
-        ws.send(JSON.stringify({ message: "You are not authenticated" }))
-        ws.close()
-        return;
+    const requestedUserId = queryParams.get('userId');
+
+    let userId: string = "";
+    if (token) {
+        const verified = checkUser(token);
+        if (verified) {
+            userId = verified;
+        }
     }
 
+    if (!userId) {
+        userId = requestedUserId || `guest_${Math.random().toString(36).substring(2, 9)}`;
+    }
+
+    // Ensure user exists in Postgres database
+    ensureUserExists(userId);
 
     const currentUser: User = {
         userId,
@@ -54,13 +112,14 @@ wss.on('connection', (ws, request) => {
 
     ws.on('message', async (message) => {
         try {
-            console.log(`Received from client: ${message}`);
+            console.log(`Received from client [${userId}]: ${message}`);
             const parsedMessage = JSON.parse(message.toString());
 
             if (parsedMessage.type === 'join_room') {
                 const roomId = parsedMessage.roomId?.toString();
                 if (roomId && !currentUser.rooms.includes(roomId)) {
                     currentUser.rooms.push(roomId);
+                    console.log(`User [${userId}] joined room [${roomId}] (Total users in room: ${users.filter(u => u.rooms.includes(roomId)).length})`);
                 }
             }
 
@@ -70,61 +129,59 @@ wss.on('connection', (ws, request) => {
             }
 
             if (parsedMessage.type === "chat") {
-                const roomId = parsedMessage.roomId;
+                const roomId = parsedMessage.roomId?.toString();
                 const messageText = parsedMessage.message;
-                const numericRoomId = Number(roomId);
 
-                if (isNaN(numericRoomId)) {
-                    console.error("Invalid roomId provided:", roomId);
+                if (!roomId || !messageText) {
                     return;
                 }
 
-                // Ensure room exists in DB to prevent foreign key violations
-                const existingRoom = await prismaClient.room.findUnique({
-                    where: { id: numericRoomId }
-                });
+                // Get or create room ID in database
+                const dbRoomId = await getOrCreateRoomId(roomId, userId);
+                let savedChatId: number | undefined;
 
-                if (!existingRoom) {
-                    await prismaClient.room.create({
-                        data: {
-                            id: numericRoomId,
-                            slug: `room-${numericRoomId}-${Date.now()}`,
-                            adminId: userId
-                        }
-                    });
-                }
-
-                const chat = await prismaClient.chat.create({
-                    data: {
-                        roomId: numericRoomId,
-                        userId: userId,
-                        message: messageText
+                if (dbRoomId) {
+                    try {
+                        const chat = await prismaClient.chat.create({
+                            data: {
+                                roomId: dbRoomId,
+                                userId: userId,
+                                message: typeof messageText === 'string' ? messageText : JSON.stringify(messageText)
+                            }
+                        });
+                        savedChatId = chat.id;
+                        console.log("Chat saved to DB successfully, ID:", savedChatId);
+                    } catch (dbErr) {
+                        console.error("DB chat create error:", dbErr);
                     }
-                });
-                console.log("Chat saved to DB successfully:", chat);
+                }
 
                 let outboundMessage = messageText;
                 try {
-                    const parsedShape = JSON.parse(messageText);
-                    parsedShape.id = chat.id;
+                    const parsedShape = typeof messageText === 'string' ? JSON.parse(messageText) : messageText;
+                    if (savedChatId) {
+                        parsedShape.id = savedChatId;
+                    }
                     outboundMessage = JSON.stringify(parsedShape);
                 } catch (err) {}
 
+                // Broadcast immediately to ALL users in the same room
                 users.forEach(u => {
-                    if (u.rooms.includes(roomId.toString())) {
+                    if (u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
                         u.ws.send(JSON.stringify({
                             type: "chat",
                             message: outboundMessage,
                             userId,
+                            senderId: parsedMessage.senderId,
                             roomId,
-                            id: chat.id
+                            id: savedChatId
                         }));
                     }
                 });
             }
 
             if (parsedMessage.type === "delete_shape") {
-                const roomId = parsedMessage.roomId;
+                const roomId = parsedMessage.roomId?.toString();
                 const shapeId = Number(parsedMessage.shapeId);
                 if (!isNaN(shapeId)) {
                     try {
@@ -138,10 +195,11 @@ wss.on('connection', (ws, request) => {
                 }
 
                 users.forEach(u => {
-                    if (roomId && u.rooms.includes(roomId.toString())) {
+                    if (roomId && u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
                         u.ws.send(JSON.stringify({
                             type: "delete_shape",
                             shapeId: parsedMessage.shapeId,
+                            senderId: parsedMessage.senderId,
                             roomId
                         }));
                     }
@@ -149,8 +207,8 @@ wss.on('connection', (ws, request) => {
             }
 
             if (parsedMessage.type === "update_shape") {
-                const roomId = parsedMessage.roomId;
-                const messageText = parsedMessage.message;
+                const roomId = parsedMessage.roomId?.toString();
+                const messageText = typeof parsedMessage.message === 'string' ? parsedMessage.message : JSON.stringify(parsedMessage.message);
                 const shapeId = Number(parsedMessage.shapeId);
 
                 if (!isNaN(shapeId) && messageText) {
@@ -166,15 +224,55 @@ wss.on('connection', (ws, request) => {
                 }
 
                 users.forEach(u => {
-                    if (roomId && u.rooms.includes(roomId.toString())) {
+                    if (roomId && u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
                         u.ws.send(JSON.stringify({
                             type: "update_shape",
                             shapeId,
                             message: messageText,
+                            senderId: parsedMessage.senderId,
                             roomId
                         }));
                     }
                 });
+            }
+
+            // In-Memory Ephemeral Live Dragging (Zero DB writes, sub-1ms RAM broadcast to peers)
+            if (parsedMessage.type === "peer_drag") {
+                const roomId = parsedMessage.roomId?.toString();
+                const senderId = parsedMessage.senderId;
+                const shapes = parsedMessage.shapes;
+
+                if (roomId && shapes) {
+                    users.forEach(u => {
+                        if (u.ws !== ws && u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
+                            u.ws.send(JSON.stringify({
+                                type: "peer_drag",
+                                roomId,
+                                senderId,
+                                shapes
+                            }));
+                        }
+                    });
+                }
+            }
+
+            // In-Memory Ephemeral Live Cursor Stream
+            if (parsedMessage.type === "peer_cursor") {
+                const roomId = parsedMessage.roomId?.toString();
+                if (roomId) {
+                    users.forEach(u => {
+                        if (u.ws !== ws && u.rooms.includes(roomId) && u.ws.readyState === WebSocket.OPEN) {
+                            u.ws.send(JSON.stringify({
+                                type: "peer_cursor",
+                                userId,
+                                senderId: parsedMessage.senderId,
+                                x: parsedMessage.x,
+                                y: parsedMessage.y,
+                                roomId
+                            }));
+                        }
+                    });
+                }
             }
         } catch (e) {
             console.error("Failed to process message:", e);
@@ -182,10 +280,14 @@ wss.on('connection', (ws, request) => {
     });
 
     ws.on('close', () => {
-        console.log('Client has disconnected');
+        console.log(`Client [${userId}] has disconnected`);
         const index = users.findIndex(u => u.ws === ws);
         if (index !== -1) {
             users.splice(index, 1);
         }
+    });
+
+    ws.on('error', (err) => {
+        console.error(`WebSocket error for user [${userId}]:`, err);
     });
 });

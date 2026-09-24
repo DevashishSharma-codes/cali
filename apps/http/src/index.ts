@@ -3,96 +3,11 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import { middleware } from "./middleware.js";
-import { CreateRoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/types";
+import { CreateRoomSchema } from "@repo/common/types";
 import { prismaClient } from "@repo/db";
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-
-app.post("/signup", async (req, res) => {
-    const parsedData = CreateUserSchema.safeParse(req.body);
-    if (!parsedData.success) {
-        return res.status(411).json({
-            message: "Invalid input"
-        });
-    }
-
-    try {
-        const existingUser = await prismaClient.user.findFirst({
-            where: {
-                email: parsedData.data.email,
-            }
-        });
-
-        if (existingUser) {
-            return res.status(411).json({
-                message: "User already exists with this email"
-            });
-        }
-
-        const user = await prismaClient.user.create({
-            data: {
-                email: parsedData.data.email,
-                password: parsedData.data.password,
-                name: parsedData.data.name,
-                photo: parsedData.data.photo,
-            }
-        });
-
-        const token = jwt.sign(
-            { userId: user.id },
-            JWT_SECRET
-        );
-
-        res.json({
-            userId: user.id,
-            token
-        });
-    } catch (e) {
-        res.status(500).json({
-            message: "Error signing up"
-        });
-    }
-});
-
-app.post("/signin", async (req, res) => {
-    const parsedData = SigninSchema.safeParse(req.body);
-    if (!parsedData.success) {
-        return res.status(411).json({
-            message: "Invalid input"
-        });
-    }
-
-    try {
-        const user = await prismaClient.user.findFirst({
-            where: {
-                email: parsedData.data.email,
-                password: parsedData.data.password,
-            }
-        });
-
-        if (!user) {
-            return res.status(403).json({
-                message: "Invalid credentials"
-            });
-        }
-
-        const token = jwt.sign(
-            { userId: user.id },
-            JWT_SECRET
-        );
-
-        res.json({
-            userId: user.id,
-            token
-        });
-    } catch (e) {
-        res.status(500).json({
-            message: "Error signing in"
-        });
-    }
-});
 
 app.post("/room", middleware, async (req, res) => {
     const parsedData = CreateRoomSchema.safeParse(req.body);

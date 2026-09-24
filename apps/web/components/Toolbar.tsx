@@ -16,6 +16,7 @@ import {
   Image as ImageIcon,
   Type,
   Boxes,
+  Download,
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -26,6 +27,7 @@ interface ToolbarProps {
   onUploadImage?: (file: File) => void;
   isLibraryOpen?: boolean;
   onToggleLibrary?: () => void;
+  onOpenExport?: () => void;
 }
 
 export function Toolbar({
@@ -36,6 +38,7 @@ export function Toolbar({
   onUploadImage,
   isLibraryOpen = false,
   onToggleLibrary,
+  onOpenExport,
 }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -237,6 +240,48 @@ export function Toolbar({
             }}
           >
             <Undo2 size={18} />
+          </button>
+        </>
+      )}
+
+      {onOpenExport && (
+        <>
+          <div
+            style={{
+              width: '1px',
+              height: '20px',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              margin: '0 3px',
+            }}
+          />
+          <button
+            title="Export Diagram as PNG / JPEG / SVG (Ctrl+Shift+E / ⌘⇧E)"
+            onClick={onOpenExport}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '9px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: '#cae39f',
+              cursor: 'pointer',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(202, 227, 159, 0.18)';
+              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#cae39f';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <Download size={18} />
           </button>
         </>
       )}

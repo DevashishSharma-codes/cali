@@ -23,17 +23,22 @@ import { Toolbar } from './Toolbar';
 import { StyleSidebar } from './StyleSidebar';
 import { ZoomControls } from './ZoomControls';
 import { EntityLibraryModal } from './EntityLibraryModal';
+import { ExportModal } from './ExportModal';
 import { LibraryEntity } from '../lib/entityLibrary';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Home, Paintbrush } from 'lucide-react';
+import { useUser, SignInButton, UserButton } from '@clerk/nextjs';
+import Link from 'next/link';
 
 const generateClientId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
 export function Canvas({ roomId }: { roomId: string | number }) {
+  const { isLoaded: isAuthLoaded, isSignedIn } = useUser();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const shapesRef = useRef<Shape[]>([]);
   const [selectedTool, setSelectedTool] = useState<Tool>('select');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -52,6 +57,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     startMouse: { x: number; y: number };
     hasMoved?: boolean;
   } | null>(null);
+
+  // In-memory session client ID & throttle timer for live multiplayer streaming
+  const sessionClientIdRef = useRef<string>(
+    typeof window !== 'undefined'
+      ? 'client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now()
+      : 'client_init'
+  );
+  const lastWsDragTimeRef = useRef<number>(0);
 
   const [isResizing, setIsResizing] = useState(false);
   const resizingStateRef = useRef<{
@@ -161,6 +174,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       if (selectedShapesRef.current.length > 0) {
         const selectedIds = new Set(selectedShapesRef.current.map((s) => s.id).filter(Boolean));
         const selectedClientIds = new Set(selectedShapesRef.current.map((s) => s.clientId).filter(Boolean));
+        const now = Date.now();
 
         setShapes((prev) => {
           const updated = prev.map((s) => {
@@ -170,7 +184,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
               selectedShapesRef.current.includes(s);
 
             if (isSelected) {
-              const updatedShape = { ...s, [prop]: value };
+              const updatedShape: Shape = {
+                ...s,
+                [prop]: value,
+                updatedAt: now,
+                version: (s.version || 0) + 1,
+              };
               if (updatedShape.id) {
                 updateShapeApi(updatedShape.id, updatedShape);
                 if (socket) {
@@ -179,6 +198,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                       type: 'update_shape',
                       roomId: Number(roomId),
                       shapeId: updatedShape.id,
+                      senderId: sessionClientIdRef.current,
                       message: JSON.stringify(updatedShape),
                     })
                   );
@@ -195,6 +215,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           curr.map((s) => ({
             ...s,
             [prop]: value,
+            updatedAt: now,
+            version: (s.version || 0) + 1,
           }))
         );
       }
@@ -240,14 +262,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     try {
       const savedBg = localStorage.getItem('excali_canvas_bg');
       if (savedBg) setCanvasBackground(savedBg);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const handleSetCanvasBackground = useCallback((color: string) => {
     setCanvasBackground(color);
     try {
       localStorage.setItem('excali_canvas_bg', color);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   // Delete selected shapes (Backspace / Delete key)
@@ -270,6 +292,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
               type: 'delete_shape',
               roomId: Number(roomId),
               shapeId,
+              senderId: sessionClientIdRef.current,
             })
           );
         }
@@ -295,7 +318,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
       const selectedIds = new Set(selectedShapesRef.current.map((s) => s.id).filter(Boolean));
       const selectedClientIds = new Set(selectedShapesRef.current.map((s) => s.clientId).filter(Boolean));
-      const movedSelected = selectedShapesRef.current.map((s) => moveShape(s, dx, dy));
+      const now = Date.now();
+      const movedSelected = selectedShapesRef.current.map((s) => ({
+        ...moveShape(s, dx, dy),
+        updatedAt: now,
+        version: (s.version || 0) + 1,
+      }));
 
       setShapes((prev) => {
         const next = prev.map((s) => {
@@ -308,7 +336,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             const idx = selectedShapesRef.current.findIndex(
               (sel) => (sel.id && sel.id === s.id) || (sel.clientId && sel.clientId === s.clientId) || sel === s
             );
-            return idx !== -1 && movedSelected[idx] ? movedSelected[idx]! : moveShape(s, dx, dy);
+            return idx !== -1 && movedSelected[idx]
+              ? movedSelected[idx]!
+              : { ...moveShape(s, dx, dy), updatedAt: now, version: (s.version || 0) + 1 };
           }
           return s;
         });
@@ -331,6 +361,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                 type: 'update_shape',
                 roomId: Number(roomId),
                 shapeId,
+                senderId: sessionClientIdRef.current,
                 message: JSON.stringify({ ...shape, id: shapeId }),
               })
             );
@@ -354,6 +385,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       }
 
       if (e.key === 'Escape') {
+        setIsExportOpen(false);
+        setIsLibraryOpen(false);
         if (selectedShapesRef.current.length > 0) {
           setSelectedShapes([]);
         }
@@ -380,6 +413,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       if (e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
         setIsLibraryOpen((prev) => !prev);
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setIsExportOpen(true);
         return;
       }
 
@@ -471,6 +510,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     if (editingText.isEditingExisting) {
       const existingId = editingText.id;
       const existingClientId = editingText.clientId;
+      const now = Date.now();
 
       if (trimmed.length > 0) {
         // Update existing text shape in place
@@ -484,6 +524,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                 ...s,
                 text: trimmed,
                 fontSize: editingText.fontSize || s.fontSize || 24,
+                updatedAt: now,
+                version: (s.version || 0) + 1,
               };
               if (updated.id) {
                 updateShapeApi(updated.id, updated);
@@ -493,6 +535,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                       type: 'update_shape',
                       roomId: Number(roomId),
                       shapeId: updated.id,
+                      senderId: sessionClientIdRef.current,
                       message: JSON.stringify(updated),
                     })
                   );
@@ -513,6 +556,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                 type: 'delete_shape',
                 roomId: Number(roomId),
                 shapeId: existingId,
+                senderId: sessionClientIdRef.current,
               })
             );
           }
@@ -528,6 +572,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     } else if (trimmed.length > 0) {
       // Create new text shape
       const clientId = generateClientId();
+      const now = Date.now();
       const newTextShape: Shape = {
         type: 'text',
         text: trimmed,
@@ -537,6 +582,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         strokeColor,
         opacity,
         clientId,
+        updatedAt: now,
+        version: 1,
       };
       setShapes((prev) => [...prev, newTextShape]);
 
@@ -545,6 +592,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           JSON.stringify({
             type: 'chat',
             roomId: Number(roomId),
+            senderId: sessionClientIdRef.current,
             message: JSON.stringify(newTextShape),
           })
         );
@@ -677,9 +725,69 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'chat') {
+
+          // 1. Drop self-echoes from this session (except chat where we only map DB id)
+          if (data.senderId && data.senderId === sessionClientIdRef.current && data.type !== 'chat') {
+            return;
+          }
+
+          if (data.type === 'peer_drag') {
+            if (data.senderId === sessionClientIdRef.current) return;
+            const draggedUpdates = data.shapes as Partial<Shape>[];
+            if (!Array.isArray(draggedUpdates) || draggedUpdates.length === 0) return;
+
+            const updatedMap = new Map<number | string, Partial<Shape>>();
+            draggedUpdates.forEach((u) => {
+              if (u.id) updatedMap.set(u.id, u);
+              if (u.clientId) updatedMap.set(u.clientId, u);
+            });
+
+            setShapes((prev) =>
+              prev.map((s) => {
+                // If the local user is currently dragging this shape, keep local drag position
+                if (
+                  isDraggingSelection &&
+                  selectedShapesRef.current.some(
+                    (sel) => (sel.id && sel.id === s.id) || (sel.clientId && sel.clientId === s.clientId)
+                  )
+                ) {
+                  return s;
+                }
+                const match = (s.id && updatedMap.get(s.id)) || (s.clientId && updatedMap.get(s.clientId));
+                if (match) {
+                  return { ...s, ...match } as Shape;
+                }
+                return s;
+              })
+            );
+          } else if (data.type === 'chat') {
             const newShape: Shape = JSON.parse(data.message);
             const dbId = data.id ? Number(data.id) : newShape.id;
+
+            if (data.senderId === sessionClientIdRef.current) {
+              // Self echo for newly created shape: only assign the database ID without resetting coordinates
+              if (dbId) {
+                setShapes((prev) =>
+                  prev.map((s) => {
+                    if (newShape.clientId && s.clientId === newShape.clientId) {
+                      return { ...s, id: dbId };
+                    }
+                    return s;
+                  })
+                );
+                setSelectedShapes((prev) =>
+                  prev.map((s) => {
+                    if (newShape.clientId && s.clientId === newShape.clientId) {
+                      return { ...s, id: dbId };
+                    }
+                    return s;
+                  })
+                );
+              }
+              return;
+            }
+
+            // Remote shape from a peer
             if (dbId) {
               newShape.id = dbId;
             }
@@ -695,7 +803,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                 }
               }
 
-              // 2. Check if shape already exists by clientId (e.g. created locally before DB response)
+              // 2. Check if shape already exists by clientId
               if (newShape.clientId) {
                 const idxByClient = prev.findIndex((s) => s.clientId === newShape.clientId);
                 if (idxByClient !== -1) {
@@ -707,32 +815,52 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
               return [...prev, newShape];
             });
-
-            // Keep selected shapes synchronized with DB id
-            if (dbId) {
-              setSelectedShapes((prev) =>
-                prev.map((s) =>
-                  (s.id === dbId || (newShape.clientId && s.clientId === newShape.clientId))
-                    ? { ...s, ...newShape, id: dbId }
-                    : s
-                )
-              );
-            }
           } else if (data.type === 'update_shape') {
-            const updatedShape = JSON.parse(data.message);
+            if (data.senderId === sessionClientIdRef.current) return;
+            const updatedShape = JSON.parse(data.message) as Shape;
             const updatedId = Number(data.shapeId);
+            const incomingUpdatedAt = updatedShape.updatedAt || 0;
+            const incomingVersion = updatedShape.version || 0;
+
             setShapes((prev) =>
-              prev.map((s) => (s.id === updatedId ? { ...updatedShape, id: updatedId } : s))
+              prev.map((s) => {
+                const isMatch = s.id === updatedId || (updatedShape.clientId && s.clientId === updatedShape.clientId);
+                if (!isMatch) return s;
+
+                // If local user is actively dragging or resizing this shape, shield local state
+                if (
+                  (isDraggingSelection || isResizing) &&
+                  selectedShapesRef.current.some(
+                    (sel) => (sel.id && sel.id === s.id) || (sel.clientId && sel.clientId === s.clientId)
+                  )
+                ) {
+                  return s;
+                }
+
+                // Last-Write-Wins (LWW) timestamp check: drop stale packet if local is newer
+                const localUpdatedAt = s.updatedAt || 0;
+                const localVersion = s.version || 0;
+                if (incomingUpdatedAt < localUpdatedAt || incomingVersion < localVersion) {
+                  return s;
+                }
+
+                return { ...s, ...updatedShape, id: updatedId };
+              })
             );
+
             setSelectedShapes((prev) =>
-              prev.map((s) => (s.id === updatedId ? { ...updatedShape, id: updatedId } : s))
+              prev.map((s) => {
+                const isMatch = s.id === updatedId || (updatedShape.clientId && s.clientId === updatedShape.clientId);
+                if (!isMatch) return s;
+                return { ...s, ...updatedShape, id: updatedId };
+              })
             );
           } else if (data.type === 'delete_shape') {
             const deletedId = Number(data.shapeId);
             setShapes((prev) => prev.filter((s) => s.id !== deletedId));
             setSelectedShapes((prev) => prev.filter((s) => s.id !== deletedId));
           }
-        } catch (e) {}
+        } catch (e) { }
       };
     }
   }, [socket, loading, roomId]);
@@ -744,10 +872,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       canvasRef.current.height = window.innerHeight;
       const shapesToDraw = editingText?.isEditingExisting
         ? shapes.filter((s) => {
-            if (editingText.id && s.id === editingText.id) return false;
-            if (editingText.clientId && s.clientId === editingText.clientId) return false;
-            return true;
-          })
+          if (editingText.id && s.id === editingText.id) return false;
+          if (editingText.clientId && s.clientId === editingText.clientId) return false;
+          return true;
+        })
         : shapes;
 
       draw(
@@ -773,10 +901,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         if (canvasRef.current) {
           const shapesToDraw = editingText?.isEditingExisting
             ? shapesRef.current.filter((s) => {
-                if (editingText.id && s.id === editingText.id) return false;
-                if (editingText.clientId && s.clientId === editingText.clientId) return false;
-                return true;
-              })
+              if (editingText.id && s.id === editingText.id) return false;
+              if (editingText.clientId && s.clientId === editingText.clientId) return false;
+              return true;
+            })
             : shapesRef.current;
 
           draw(
@@ -855,6 +983,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           const worldPos = screenToWorld(targetScreenX, targetScreenY);
 
           const clientId = generateClientId();
+          const now = Date.now();
           const localImageShape: Shape = {
             type: 'image',
             src: localUrl,
@@ -864,6 +993,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             height,
             opacity,
             clientId,
+            updatedAt: now,
+            version: 1,
           };
 
           // 1. Instantly display image on canvas
@@ -886,6 +1017,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                   JSON.stringify({
                     type: 'chat',
                     roomId: Number(roomId),
+                    senderId: sessionClientIdRef.current,
                     message: JSON.stringify({
                       ...localImageShape,
                       src: finalSrc,
@@ -917,6 +1049,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       const centerWorld = screenToWorld(centerScreenX, centerScreenY);
 
       // 2. Instantiate shapes for this entity
+      const now = Date.now();
       const newShapes = entity.createShapes(
         centerWorld,
         {
@@ -929,7 +1062,11 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           opacity,
         },
         generateClientId
-      );
+      ).map((s) => ({
+        ...s,
+        updatedAt: now,
+        version: 1,
+      }));
 
       if (newShapes.length === 0) return;
 
@@ -946,6 +1083,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           socket.send(
             JSON.stringify({
               type: 'chat',
+              senderId: sessionClientIdRef.current,
               message: JSON.stringify(shape),
               roomId: Number(roomId),
             })
@@ -1034,6 +1172,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
                   type: 'delete_shape',
                   roomId: Number(roomId),
                   shapeId: shape.id,
+                  senderId: sessionClientIdRef.current,
                 })
               );
             }
@@ -1057,6 +1196,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       strokeStyle,
       roughness,
       opacity,
+      seed: Math.floor(Math.random() * 2147483647),
       clientId: clientId || generateClientId(),
     };
 
@@ -1231,8 +1371,8 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           // Toggle selection
           const nextSelected = isAlreadySelected
             ? selectedShapes.filter(
-                (s) => (s.id ? s.id !== hitShape.id : s.clientId ? s.clientId !== hitShape.clientId : s !== hitShape)
-              )
+              (s) => (s.id ? s.id !== hitShape.id : s.clientId ? s.clientId !== hitShape.clientId : s !== hitShape)
+            )
             : [...selectedShapes, hitShape];
           setSelectedShapes(nextSelected);
         } else {
@@ -1442,6 +1582,41 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             marqueeBox
           );
         }
+
+        // Ephemeral in-memory live drag stream to peers (throttled to ~25ms / 40 FPS, 0 DB writes)
+        if (socket && nextSelected.length > 0) {
+          const now = Date.now();
+          if (now - lastWsDragTimeRef.current > 25) {
+            lastWsDragTimeRef.current = now;
+            socket.send(
+              JSON.stringify({
+                type: 'peer_drag',
+                roomId: Number(roomId),
+                senderId: sessionClientIdRef.current,
+                shapes: nextSelected.map((s) => ({
+                  id: s.id,
+                  clientId: s.clientId,
+                  type: s.type,
+                  ...(s.type === 'rect' || s.type === 'diamond' || s.type === 'image' || s.type === 'text'
+                    ? { x: s.x, y: s.y, width: (s as any).width, height: (s as any).height }
+                    : {}),
+                  ...(s.type === 'circle'
+                    ? { centerX: (s as any).centerX, centerY: (s as any).centerY, radius: (s as any).radius }
+                    : {}),
+                  ...(s.type === 'line' || s.type === 'arrow'
+                    ? {
+                      startX: (s as any).startX,
+                      startY: (s as any).startY,
+                      endX: (s as any).endX,
+                      endY: (s as any).endY,
+                    }
+                    : {}),
+                  ...(s.type === 'pencil' ? { points: (s as any).points } : {}),
+                })),
+              })
+            );
+          }
+        }
         return;
       }
 
@@ -1560,22 +1735,30 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         setIsResizing(false);
         const finalSelected = selectedShapesRef.current;
         resizingStateRef.current = null;
-        // Sync resized shapes to backend and peers
+        // Sync resized shapes to backend and peers with LWW timestamps
         if (finalSelected.length > 0) {
+          const now = Date.now();
           finalSelected.forEach((shape) => {
             const currentShape = shapesRef.current.find(
               (s) => (shape.id && s.id === shape.id) || (shape.clientId && s.clientId === shape.clientId)
             );
             const shapeId = shape.id || currentShape?.id;
+            const updatedShape: Shape = {
+              ...shape,
+              id: shapeId,
+              updatedAt: now,
+              version: (shape.version || 0) + 1,
+            };
             if (shapeId) {
-              updateShapeApi(shapeId, shape);
+              updateShapeApi(shapeId, updatedShape);
               if (socket) {
                 socket.send(
                   JSON.stringify({
                     type: 'update_shape',
                     roomId: Number(roomId),
                     shapeId,
-                    message: JSON.stringify({ ...shape, id: shapeId }),
+                    senderId: sessionClientIdRef.current,
+                    message: JSON.stringify(updatedShape),
                   })
                 );
               }
@@ -1592,20 +1775,28 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
         // Sync moved shapes to backend and peers if position changed
         if (hadMoved && finalSelected.length > 0) {
+          const now = Date.now();
           finalSelected.forEach((shape) => {
             const currentShape = shapesRef.current.find(
               (s) => (shape.id && s.id === shape.id) || (shape.clientId && s.clientId === shape.clientId)
             );
             const shapeId = shape.id || currentShape?.id;
+            const updatedShape: Shape = {
+              ...shape,
+              id: shapeId,
+              updatedAt: now,
+              version: (shape.version || 0) + 1,
+            };
             if (shapeId) {
-              updateShapeApi(shapeId, shape);
+              updateShapeApi(shapeId, updatedShape);
               if (socket) {
                 socket.send(
                   JSON.stringify({
                     type: 'update_shape',
                     roomId: Number(roomId),
                     shapeId,
-                    message: JSON.stringify({ ...shape, id: shapeId }),
+                    senderId: sessionClientIdRef.current,
+                    message: JSON.stringify(updatedShape),
                   })
                 );
               }
@@ -1631,6 +1822,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
     const worldPos = screenToWorld(e.clientX, e.clientY);
     const clientId = generateClientId();
+    const now = Date.now();
     let newShape: Shape;
     if (selectedTool === 'pencil') {
       newShape = {
@@ -1642,10 +1834,16 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         opacity,
         strokeStyle,
         clientId,
+        updatedAt: now,
+        version: 1,
       };
       pencilPointsRef.current = [];
     } else {
-      newShape = createShape(selectedTool, startX, startY, worldPos.x, worldPos.y, clientId);
+      newShape = {
+        ...createShape(selectedTool, startX, startY, worldPos.x, worldPos.y, clientId),
+        updatedAt: now,
+        version: 1,
+      };
     }
 
     setShapes((prev) => [...prev, newShape]);
@@ -1655,6 +1853,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         JSON.stringify({
           type: 'chat',
           roomId: Number(roomId),
+          senderId: sessionClientIdRef.current,
           message: JSON.stringify(newShape),
         })
       );
@@ -1743,6 +1942,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onUploadImage={(file) => uploadAndAddImage(file)}
         isLibraryOpen={isLibraryOpen}
         onToggleLibrary={() => setIsLibraryOpen((prev) => !prev)}
+        onOpenExport={() => setIsExportOpen(true)}
       />
 
       <EntityLibraryModal
@@ -1750,6 +1950,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onClose={() => setIsLibraryOpen(false)}
         onInsertEntity={handleInsertEntity}
         selectedShapes={selectedShapes}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        shapes={shapes}
+        selectedShapes={selectedShapes}
+        canvasBackground={canvasBackground}
       />
 
       <StyleSidebar
@@ -1778,12 +1986,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onResetZoom={handleResetZoom}
       />
 
-      {/* Pencil Brand & Room Badge */}
+      {/* Picasso Brand & Room Badge */}
       <div
         style={{
           position: 'absolute',
           top: '16px',
-          right: '16px',
+          left: '16px',
           zIndex: 100,
           display: 'flex',
           alignItems: 'center',
@@ -1801,20 +2009,105 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           userSelect: 'none',
         }}
       >
-        <div
+        <Link
+          href="/"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            color: '#cae39f',
-            fontWeight: 700,
-            fontSize: '14px',
+            gap: '8px',
+            color: '#f8fafc',
+            fontWeight: 600,
+            fontSize: '13px',
             letterSpacing: '-0.01em',
+            textDecoration: 'none',
           }}
         >
-          <img src="/favicon.svg" alt="Pencil Logo" style={{ width: '18px', height: '18px' }} />
-          <span>Pencil</span>
-        </div>
+          <div
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              backgroundColor: '#cae39f',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#121908',
+            }}
+          >
+            <Paintbrush size={10} />
+          </div>
+          <span>Picasso</span>
+        </Link>
+        <div
+          style={{
+            width: '1px',
+            height: '12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          }}
+        />
+        <span
+          style={{
+            fontSize: '12px',
+            fontWeight: 500,
+            color: 'rgba(255, 255, 255, 0.5)',
+            letterSpacing: '0.01em',
+          }}
+        >
+          Room {roomId}
+        </span>
+      </div>
+
+      {/* Top Right Header Controls & Clerk Auth */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          zIndex: 40,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '5px 8px',
+          backgroundColor: 'rgba(24, 24, 30, 0.76)',
+          backdropFilter: 'blur(32px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          borderRadius: '12px',
+          boxShadow:
+            '0 16px 36px -8px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2)',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+          userSelect: 'none',
+        }}
+      >
+        <Link
+          href="/"
+          title="Back to Home"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '28px',
+            borderRadius: '8px',
+            color: 'rgba(255, 255, 255, 0.7)',
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            textDecoration: 'none',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.14)';
+            e.currentTarget.style.color = '#cae39f';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+          }}
+        >
+          <Home size={15} />
+        </Link>
+
         <div
           style={{
             width: '1px',
@@ -1822,15 +2115,45 @@ export function Canvas({ roomId }: { roomId: string | number }) {
             backgroundColor: 'rgba(255, 255, 255, 0.15)',
           }}
         />
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 500,
-            color: 'rgba(255, 255, 255, 0.55)',
-          }}
-        >
-          Room {roomId}
-        </span>
+
+        {isAuthLoaded && isSignedIn ? (
+          <UserButton
+            appearance={{
+              elements: {
+                userButtonAvatarBox: {
+                  width: '26px',
+                  height: '26px',
+                  border: '1.5px solid #cae39f',
+                },
+              },
+            }}
+          />
+        ) : isAuthLoaded ? (
+          <SignInButton mode="modal">
+            <button
+              type="button"
+              style={{
+                padding: '4px 10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(202, 227, 159, 0.3)',
+                backgroundColor: 'rgba(202, 227, 159, 0.12)',
+                color: '#cae39f',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(202, 227, 159, 0.22)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(202, 227, 159, 0.12)';
+              }}
+            >
+              Sign In
+            </button>
+          </SignInButton>
+        ) : null}
       </div>
 
       {editingText && textScreenPos && (

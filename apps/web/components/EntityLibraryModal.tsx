@@ -783,6 +783,36 @@ export function EntityLibraryModal({
           border: 2px solid transparent;
           background-clip: padding-box;
         }
+        .mac-card-preview {
+          width: 52px;
+          height: 52px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 8px;
+          overflow: hidden;
+          position: relative;
+          flex-shrink: 0;
+        }
+        .mac-card-preview > * {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 52px !important;
+          max-height: 52px !important;
+          object-fit: contain !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        .mac-card-preview svg,
+        .mac-card-preview img {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 52px !important;
+          max-height: 52px !important;
+          object-fit: contain !important;
+          display: block !important;
+        }
       `}</style>
 
       {/* Mac Glass Window Container */}
@@ -1309,7 +1339,7 @@ export function EntityLibraryModal({
                       backdropFilter: 'blur(16px)',
                       border: '1px solid rgba(255, 255, 255, 0.12)',
                       borderRadius: '16px',
-                      padding: '16px 14px',
+                      padding: '14px 10px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -1317,21 +1347,37 @@ export function EntityLibraryModal({
                       cursor: 'pointer',
                       position: 'relative',
                       boxShadow: '0 6px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0.5px rgba(255, 255, 255, 0.15)',
+                      overflow: 'hidden',
+                      minHeight: '172px',
                     }}
                   >
                     <div
-                      style={{
-                        width: '56px',
-                        height: '56px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '10px',
-                      }}
+                      className="mac-card-preview"
                       dangerouslySetInnerHTML={{ __html: entity.previewSvg }}
                     />
-                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#ffffff' }}>{entity.name}</div>
-                    <div style={{ fontSize: '0.73rem', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: '0.86rem',
+                        color: '#ffffff',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {entity.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.70rem',
+                        color: 'rgba(255, 255, 255, 0.55)',
+                        marginTop: '4px',
+                        lineHeight: '1.25',
+                        height: '28px',
+                        overflow: 'hidden',
+                      }}
+                    >
                       {entity.description}
                     </div>
 
@@ -1453,7 +1499,7 @@ export function EntityLibraryModal({
                       WebkitBackdropFilter: 'blur(20px)',
                       border: '1px solid rgba(255, 255, 255, 0.13)',
                       borderRadius: '16px',
-                      padding: '16px 12px',
+                      padding: '14px 10px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -1462,6 +1508,8 @@ export function EntityLibraryModal({
                       transition: 'all 0.16s cubic-bezier(0.16, 1, 0.3, 1)',
                       position: 'relative',
                       boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0.5px rgba(255, 255, 255, 0.22)',
+                      overflow: 'hidden',
+                      minHeight: '172px',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = 'rgba(202, 227, 159, 0.65)';
@@ -1479,21 +1527,14 @@ export function EntityLibraryModal({
                     }}
                   >
                     <div
-                      style={{
-                        width: '60px',
-                        height: '60px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '10px',
-                      }}
+                      className="mac-card-preview"
                       dangerouslySetInnerHTML={{ __html: entity.previewSvg }}
                     />
 
                     <div
                       style={{
                         fontWeight: 600,
-                        fontSize: '0.86rem',
+                        fontSize: '0.84rem',
                         color: '#f8fafc',
                         marginBottom: '2px',
                         maxWidth: '100%',
@@ -1507,12 +1548,17 @@ export function EntityLibraryModal({
 
                     <div
                       style={{
-                        fontSize: '0.71rem',
-                        color: 'rgba(255, 255, 255, 0.6)',
+                        fontSize: '0.70rem',
+                        color: 'rgba(255, 255, 255, 0.55)',
                         lineHeight: '1.25',
-                        marginBottom: '6px',
-                        height: '24px',
+                        marginBottom: '8px',
+                        height: '28px',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        wordBreak: 'break-word',
                       }}
                     >
                       {entity.description}
@@ -1520,11 +1566,12 @@ export function EntityLibraryModal({
 
                     <div
                       style={{
+                        marginTop: 'auto',
                         fontSize: '0.67rem',
                         color: '#cae39f',
                         background: 'rgba(202, 227, 159, 0.15)',
                         border: '1px solid rgba(202, 227, 159, 0.35)',
-                        padding: '2px 7px',
+                        padding: '2px 8px',
                         borderRadius: '6px',
                         fontWeight: 600,
                         textTransform: 'capitalize',
@@ -1554,7 +1601,7 @@ export function EntityLibraryModal({
                     WebkitBackdropFilter: 'blur(20px)',
                     border: '1px solid rgba(255, 255, 255, 0.13)',
                     borderRadius: '16px',
-                    padding: '16px 12px',
+                    padding: '14px 10px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -1563,6 +1610,8 @@ export function EntityLibraryModal({
                     transition: 'all 0.16s cubic-bezier(0.16, 1, 0.3, 1)',
                     position: 'relative',
                     boxShadow: '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0.5px rgba(255, 255, 255, 0.22)',
+                    overflow: 'hidden',
+                    minHeight: '172px',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = 'rgba(202, 227, 159, 0.65)';
@@ -1579,16 +1628,7 @@ export function EntityLibraryModal({
                       '0 8px 24px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0.5px rgba(255, 255, 255, 0.22)';
                   }}
                 >
-                  <div
-                    style={{
-                      width: '60px',
-                      height: '60px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '10px',
-                    }}
-                  >
+                  <div className="mac-card-preview">
                     {svgData ? (
                       <div
                         style={{
@@ -1604,7 +1644,7 @@ export function EntityLibraryModal({
                       <img
                         src={icon.svgUrl}
                         alt={icon.title}
-                        style={{ width: '48px', height: '48px', objectFit: 'contain' }}
+                        style={{ width: '44px', height: '44px', objectFit: 'contain' }}
                         loading="lazy"
                         onLoad={() => {
                           preloadCanvasImage(icon.svgUrl);
@@ -1619,7 +1659,7 @@ export function EntityLibraryModal({
                   <div
                     style={{
                       fontWeight: 600,
-                      fontSize: '0.86rem',
+                      fontSize: '0.84rem',
                       color: '#f8fafc',
                       marginBottom: '2px',
                       maxWidth: '100%',
@@ -1633,11 +1673,11 @@ export function EntityLibraryModal({
 
                   <div
                     style={{
-                      fontSize: '0.71rem',
+                      fontSize: '0.70rem',
                       color: 'rgba(255, 255, 255, 0.55)',
                       lineHeight: '1.25',
-                      marginBottom: '6px',
-                      height: '24px',
+                      marginBottom: '8px',
+                      height: '28px',
                       overflow: 'hidden',
                     }}
                   >
@@ -1646,12 +1686,14 @@ export function EntityLibraryModal({
 
                   <div
                     style={{
+                      marginTop: 'auto',
                       fontSize: '0.67rem',
                       color: 'rgba(255, 255, 255, 0.75)',
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid rgba(255, 255, 255, 0.14)',
-                      padding: '2px 7px',
+                      padding: '2px 8px',
                       borderRadius: '6px',
+                      textTransform: 'capitalize',
                     }}
                   >
                     {icon.collection}

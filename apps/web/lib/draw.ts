@@ -28,10 +28,24 @@ export function preloadCanvasImage(src: string): HTMLImageElement {
   return img;
 }
 
+export function getShapeSeed(shape: Shape): number {
+  if (shape.seed !== undefined && shape.seed !== 0) return shape.seed;
+  if (shape.id) return (shape.id * 2654435761) >>> 0;
+  if (shape.clientId) {
+    let hash = 0;
+    for (let i = 0; i < shape.clientId.length; i++) {
+      hash = (hash * 31 + shape.clientId.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) || 123456;
+  }
+  return 123456;
+}
+
 function getRoughOptions(shape: Shape) {
   const stroke = shape.strokeColor || "#ffffff";
   const strokeWidth = shape.strokeWidth || 2;
   const roughness = shape.roughness !== undefined ? shape.roughness : 1.2;
+  const seed = getShapeSeed(shape);
   const strokeLineDash =
     shape.strokeStyle === "dashed"
       ? [8, 8]
@@ -48,6 +62,7 @@ function getRoughOptions(shape: Shape) {
     : undefined;
 
   return {
+    seed,
     stroke,
     strokeWidth,
     roughness,

@@ -677,34 +677,42 @@ export function StyleSidebar({
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? 'Show Style Panel' : 'Hide Style Panel'}
         style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '10px',
-          backgroundColor: 'rgba(24, 24, 30, 0.76)',
-          backdropFilter: 'blur(24px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(190%)',
-          border: '1px solid rgba(255, 255, 255, 0.14)',
-          color: 'rgba(255, 255, 255, 0.8)',
+          width: '40px',
+          height: '40px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(26, 28, 38, 0.85)',
+          backdropFilter: 'blur(28px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+          border: '1px solid rgba(255, 255, 255, 0.22)',
+          color: '#ffffff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           boxShadow:
-            '0 4px 14px rgba(0, 0, 0, 0.35)',
+            '0 8px 24px -2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)',
           transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.color = '#ffffff';
-          e.currentTarget.style.backgroundColor = 'rgba(36, 36, 46, 0.88)';
-          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.backgroundColor = 'rgba(40, 44, 60, 0.95)';
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.38)';
+          e.currentTarget.style.transform = 'scale(1.06)';
+          e.currentTarget.style.boxShadow =
+            '0 12px 28px -4px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.4)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-          e.currentTarget.style.backgroundColor = 'rgba(24, 24, 30, 0.76)';
+          e.currentTarget.style.backgroundColor = 'rgba(26, 28, 38, 0.85)';
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.22)';
           e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow =
+            '0 8px 24px -2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3)';
         }}
       >
-        {isCollapsed ? <Sliders size={15} /> : <ChevronLeft size={15} />}
+        {isCollapsed ? (
+          <Sliders size={20} strokeWidth={2.2} color="#ffffff" />
+        ) : (
+          <ChevronLeft size={20} strokeWidth={2.4} color="#ffffff" />
+        )}
       </button>
     </div>
   );

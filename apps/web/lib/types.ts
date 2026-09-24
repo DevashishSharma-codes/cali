@@ -29,6 +29,9 @@ export interface ShapeStyle {
   roughness?: number;
   opacity?: number; // 0 - 100
   clientId?: string;
+  updatedAt?: number;
+  version?: number;
+  seed?: number;
 }
 
 export type PencilShape = ShapeStyle & {

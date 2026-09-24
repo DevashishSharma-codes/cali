@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -12,8 +13,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Pencil - Real-Time Collaborative Canvas",
-  description: "Infinite hand-drawn collaborative whiteboard built with Rough.js, Next.js, and WebSockets",
+  title: "Picasso — The Infinite Spatial Canvas",
+  description: "A minimal, elegant spatial canvas to sketch, think, and collaborate in real time.",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -32,7 +33,9 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <ClerkProvider>
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );
