@@ -1,10 +1,17 @@
+import http from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import { prismaClient } from "@repo/db";
 
-const port = Number(process.env.PORT) || 8080;
-const wss = new WebSocketServer({ port });
+// 1. Create HTTP server (with simple health check response for Render probes)
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("WebSocket Server is running");
+});
+
+// 2. Attach WebSocketServer to the HTTP server
+const wss = new WebSocketServer({ server });
 
 interface User {
     ws: WebSocket;
@@ -13,8 +20,6 @@ interface User {
 }
 
 const users: User[] = [];
-
-console.log(`WebSocket server is running on port ${port}`);
 
 function checkUser(token: string): string | false {
     try {
@@ -291,4 +296,10 @@ wss.on('connection', (ws, request) => {
     ws.on('error', (err) => {
         console.error(`WebSocket error for user [${userId}]:`, err);
     });
+});
+
+// 3. Start the HTTP server with Render / local port support
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log(`WebSocket server is running on port ${PORT}`);
 });
