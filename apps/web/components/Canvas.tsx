@@ -192,17 +192,17 @@ export function Canvas({ roomId }: { roomId: string | number }) {
               };
               if (updatedShape.id) {
                 updateShapeApi(updatedShape.id, updatedShape);
-                if (socket) {
-                  socket.send(
-                    JSON.stringify({
-                      type: 'update_shape',
-                      roomId: Number(roomId),
-                      shapeId: updatedShape.id,
-                      senderId: sessionClientIdRef.current,
-                      message: JSON.stringify(updatedShape),
-                    })
-                  );
-                }
+              }
+              if (socket) {
+                socket.send(
+                  JSON.stringify({
+                    type: 'update_shape',
+                    roomId: Number(roomId),
+                    shapeId: updatedShape.id,
+                    senderId: sessionClientIdRef.current,
+                    message: JSON.stringify(updatedShape),
+                  })
+                );
               }
               return updatedShape;
             }
@@ -1820,14 +1820,26 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       return;
     }
 
-    const worldPos = screenToWorld(e.clientX, e.clientY);
+    const clientX = e ? e.clientX : (typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
+    const clientY = e ? e.clientY : (typeof window !== 'undefined' ? window.innerHeight / 2 : 0);
+    const worldPos = screenToWorld(clientX, clientY);
     const clientId = generateClientId();
     const now = Date.now();
     let newShape: Shape;
     if (selectedTool === 'pencil') {
+      const currentPts = pencilPointsRef.current;
+      if (currentPts.length === 0) {
+        pencilPointsRef.current = [];
+        return;
+      }
+      const finalPoints =
+        currentPts.length === 1
+          ? [currentPts[0]!, { x: currentPts[0]!.x + 0.5, y: currentPts[0]!.y + 0.5 }]
+          : [...currentPts];
+
       newShape = {
         type: 'pencil',
-        points: [...pencilPointsRef.current],
+        points: finalPoints,
         strokeColor,
         strokeWidth,
         roughness,
@@ -1864,6 +1876,20 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       setSelectedTool('select');
     }
   };
+
+  // Global window mouseup listener to guarantee strokes & interactions complete even if released over toolbar/sidebar/outside
+  useEffect(() => {
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      if (isDrawing || isDraggingSelection || isResizing || isPanning || marqueeBox) {
+        handleMouseUp(e as any);
+      }
+    };
+
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDrawing, isDraggingSelection, isResizing, isPanning, marqueeBox]);
 
   const handleMouseLeave = () => {
     if (isPanning) {
