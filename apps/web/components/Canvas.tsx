@@ -25,7 +25,7 @@ import { ZoomControls } from './ZoomControls';
 import { EntityLibraryModal } from './EntityLibraryModal';
 import { ExportModal } from './ExportModal';
 import { LibraryEntity } from '../lib/entityLibrary';
-import { Loader2, Home, Paintbrush } from 'lucide-react';
+import { Loader2, Home, Paintbrush, Copy, Check } from 'lucide-react';
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 
@@ -44,6 +44,14 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [startX, setStartX] = useState(0);
   const [startY, setStartY] = useState(0);
   const pencilPointsRef = useRef<{ x: number; y: number }[]>([]);
+  const [copiedRoom, setCopiedRoom] = useState(false);
+  const handleCopyRoom = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(String(roomId));
+      setCopiedRoom(true);
+      setTimeout(() => setCopiedRoom(false), 2000);
+    }
+  };
 
   // Selection & Resizing state
   const [selectedShapes, setSelectedShapes] = useState<Shape[]>([]);
@@ -2014,84 +2022,13 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onResetZoom={handleResetZoom}
       />
 
-      {/* Picasso Brand & Room Badge */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '16px',
-          left: '16px',
-          zIndex: 100,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '6px 12px',
-          backgroundColor: 'rgba(24, 24, 30, 0.76)',
-          backdropFilter: 'blur(32px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
-          border: '1px solid rgba(255, 255, 255, 0.14)',
-          borderRadius: '12px',
-          boxShadow:
-            '0 16px 36px -8px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2)',
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
-          userSelect: 'none',
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: '#f8fafc',
-            fontWeight: 600,
-            fontSize: '13px',
-            letterSpacing: '-0.01em',
-            textDecoration: 'none',
-          }}
-        >
-          <div
-            style={{
-              width: '18px',
-              height: '18px',
-              borderRadius: '50%',
-              backgroundColor: '#cae39f',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#121908',
-            }}
-          >
-            <Paintbrush size={10} />
-          </div>
-          <span>Picasso</span>
-        </Link>
-        <div
-          style={{
-            width: '1px',
-            height: '12px',
-            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-          }}
-        />
-        <span
-          style={{
-            fontSize: '12px',
-            fontWeight: 500,
-            color: 'rgba(255, 255, 255, 0.5)',
-            letterSpacing: '0.01em',
-          }}
-        >
-          Room {roomId}
-        </span>
-      </div>
-
-      {/* Top Right Header Controls & Clerk Auth */}
+      {/* Top Right Navigation: Brand, Room Badge, Home & Auth */}
       <div
         style={{
           position: 'absolute',
           top: '16px',
           right: '16px',
-          zIndex: 40,
+          zIndex: 100,
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
@@ -2108,6 +2045,97 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           userSelect: 'none',
         }}
       >
+        <Link
+          href="/"
+          title="Picasso Home"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '7px',
+            color: '#f8fafc',
+            fontWeight: 600,
+            fontSize: '13px',
+            letterSpacing: '-0.01em',
+            textDecoration: 'none',
+            padding: '3px 6px',
+            borderRadius: '8px',
+            transition: 'background-color 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
+          <div
+            style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              backgroundColor: '#cae39f',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#121908',
+            }}
+          >
+            <Paintbrush size={11} />
+          </div>
+          <span>Picasso</span>
+        </Link>
+
+        <div
+          style={{
+            width: '1px',
+            height: '14px',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          }}
+        />
+
+        <button
+          onClick={handleCopyRoom}
+          title={copiedRoom ? 'Copied Room ID!' : 'Click to copy Room ID'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '3px 8px',
+            backgroundColor: copiedRoom ? 'rgba(202, 227, 159, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${copiedRoom ? 'rgba(202, 227, 159, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: copiedRoom ? '#cae39f' : 'rgba(255, 255, 255, 0.65)',
+            letterSpacing: '0.01em',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            if (!copiedRoom) {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#f8fafc';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!copiedRoom) {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.65)';
+            }
+          }}
+        >
+          <span>Room <strong style={{ color: copiedRoom ? '#cae39f' : 'rgba(255, 255, 255, 0.9)', fontWeight: 600 }}>{roomId}</strong></span>
+          {copiedRoom ? <Check size={12} color="#cae39f" /> : <Copy size={12} style={{ opacity: 0.6 }} />}
+        </button>
+
+        <div
+          style={{
+            width: '1px',
+            height: '14px',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+          }}
+        />
+
         <Link
           href="/"
           title="Back to Home"
