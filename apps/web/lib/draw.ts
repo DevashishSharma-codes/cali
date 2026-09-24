@@ -12,7 +12,21 @@ export interface EraserParticle {
   color: string;
 }
 
-const imageCache = new Map<string, HTMLImageElement>();
+export const imageCache = new Map<string, HTMLImageElement>();
+
+export function preloadCanvasImage(src: string): HTMLImageElement {
+  let img = imageCache.get(src);
+  if (!img) {
+    img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = src;
+    img.onload = () => {
+      if (img) imageCache.set(src, img);
+    };
+    imageCache.set(src, img);
+  }
+  return img;
+}
 
 function getRoughOptions(shape: Shape) {
   const stroke = shape.strokeColor || "#ffffff";

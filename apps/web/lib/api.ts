@@ -48,7 +48,7 @@ export async function deleteShapeApi(shapeId: number): Promise<boolean> {
     });
     return res.ok;
   } catch (e) {
-    console.error("Failed to delete shape via API:", e);
+    // Graceful fallback - WebSocket persists deletions directly to DB
     return false;
   }
 }
@@ -64,7 +64,7 @@ export async function updateShapeApi(shapeId: number, shape: Shape): Promise<boo
     });
     return res.ok;
   } catch (e) {
-    console.error("Failed to update shape via API:", e);
+    // Graceful fallback - WebSocket persists shape updates directly to DB
     return false;
   }
 }

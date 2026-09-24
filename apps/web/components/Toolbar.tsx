@@ -15,6 +15,7 @@ import {
   Undo2,
   Image as ImageIcon,
   Type,
+  Boxes,
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -23,6 +24,8 @@ interface ToolbarProps {
   onUndo?: () => void;
   canUndo?: boolean;
   onUploadImage?: (file: File) => void;
+  isLibraryOpen?: boolean;
+  onToggleLibrary?: () => void;
 }
 
 export function Toolbar({
@@ -31,6 +34,8 @@ export function Toolbar({
   onUndo,
   canUndo = true,
   onUploadImage,
+  isLibraryOpen = false,
+  onToggleLibrary,
 }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -153,6 +158,42 @@ export function Toolbar({
             <ImageIcon size={18} />
           </button>
         </>
+      )}
+
+      {onToggleLibrary && (
+        <button
+          title="Shape & Architecture Library (Shift+L)"
+          onClick={onToggleLibrary}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            borderRadius: '9px',
+            border: 'none',
+            backgroundColor: isLibraryOpen ? '#cae39f' : 'transparent',
+            color: isLibraryOpen ? '#16220b' : 'rgba(255, 255, 255, 0.7)',
+            cursor: 'pointer',
+            boxShadow: 'none',
+            transform: isLibraryOpen ? 'scale(1.02)' : 'scale(1)',
+            transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onMouseEnter={(e) => {
+            if (!isLibraryOpen) {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.color = '#ffffff';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isLibraryOpen) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+            }
+          }}
+        >
+          <Boxes size={18} />
+        </button>
       )}
 
       {onUndo && (

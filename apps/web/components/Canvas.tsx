@@ -22,6 +22,8 @@ import { useSocket } from '../hooks/useSocket';
 import { Toolbar } from './Toolbar';
 import { StyleSidebar } from './StyleSidebar';
 import { ZoomControls } from './ZoomControls';
+import { EntityLibraryModal } from './EntityLibraryModal';
+import { LibraryEntity } from '../lib/entityLibrary';
 import { Loader2 } from 'lucide-react';
 
 const generateClientId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -31,6 +33,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
   const [shapes, setShapes] = useState<Shape[]>([]);
   const shapesRef = useRef<Shape[]>([]);
   const [selectedTool, setSelectedTool] = useState<Tool>('select');
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -374,6 +377,12 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         return;
       }
 
+      if (e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        setIsLibraryOpen((prev) => !prev);
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
         handleZoomIn();
@@ -543,6 +552,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
     }
 
     setEditingText(null);
+    setSelectedTool('select');
   }, [editingText, roomId, socket, strokeColor, opacity]);
 
   // Double click anywhere on canvas to edit existing text or create new text
@@ -896,6 +906,65 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       }
     },
     [roomId, socket, opacity, screenToWorld]
+  );
+
+  // Insert entity from Shape & Architecture Library at viewport center
+  const handleInsertEntity = useCallback(
+    (entity: LibraryEntity) => {
+      // 1. Calculate camera center in world coordinates
+      const centerScreenX = window.innerWidth / 2;
+      const centerScreenY = window.innerHeight / 2;
+      const centerWorld = screenToWorld(centerScreenX, centerScreenY);
+
+      // 2. Instantiate shapes for this entity
+      const newShapes = entity.createShapes(
+        centerWorld,
+        {
+          strokeColor,
+          backgroundColor,
+          fillStyle,
+          strokeWidth,
+          strokeStyle,
+          roughness,
+          opacity,
+        },
+        generateClientId
+      );
+
+      if (newShapes.length === 0) return;
+
+      // 3. Add to local canvas state
+      setShapes((prev) => [...prev, ...newShapes]);
+
+      // 4. Select newly created shapes and switch to select tool for immediate dragging/styling
+      setSelectedShapes(newShapes);
+      setSelectedTool('select');
+
+      // 5. Broadcast to room over WebSocket
+      newShapes.forEach((shape) => {
+        if (socket) {
+          socket.send(
+            JSON.stringify({
+              type: 'chat',
+              message: JSON.stringify(shape),
+              roomId: Number(roomId),
+            })
+          );
+        }
+      });
+    },
+    [
+      screenToWorld,
+      strokeColor,
+      backgroundColor,
+      fillStyle,
+      strokeWidth,
+      strokeStyle,
+      roughness,
+      opacity,
+      socket,
+      roomId,
+    ]
   );
 
   // Clipboard paste event listener (Ctrl+V / Cmd+V)
@@ -1590,6 +1659,9 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         })
       );
     }
+
+    // Auto-switch back to the select / cursor tool once the shape is created
+    setSelectedTool('select');
   };
 
   const handleMouseLeave = () => {
@@ -1669,6 +1741,15 @@ export function Canvas({ roomId }: { roomId: string | number }) {
         onUndo={handleUndo}
         canUndo={shapes.length > 0}
         onUploadImage={(file) => uploadAndAddImage(file)}
+        isLibraryOpen={isLibraryOpen}
+        onToggleLibrary={() => setIsLibraryOpen((prev) => !prev)}
+      />
+
+      <EntityLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        onInsertEntity={handleInsertEntity}
+        selectedShapes={selectedShapes}
       />
 
       <StyleSidebar
