@@ -4,14 +4,25 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend/config";
 import { prismaClient } from "@repo/db";
 
-// 1. Create HTTP server (with simple health check response for Render probes)
+// 1. Create HTTP server (with simple health check response and CORS for probes)
 const server = http.createServer((req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    if (req.method === "OPTIONS") {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("WebSocket Server is running");
 });
 
-// 2. Attach WebSocketServer to the HTTP server
-const wss = new WebSocketServer({ server });
+// 2. Attach WebSocketServer to the HTTP server with open origin verification
+const wss = new WebSocketServer({
+    server,
+    verifyClient: () => true
+});
 
 interface User {
     ws: WebSocket;

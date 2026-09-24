@@ -1,6 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 
-const WS_URL = (process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080").replace(/\/+$/, "");
+const getNormalizedWsUrl = () => {
+  const rawUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://cali-ws.onrender.com";
+  let cleaned = rawUrl.trim().replace(/\/+$/, "");
+  if (cleaned.startsWith("http://")) {
+    cleaned = cleaned.replace(/^http:\/\//i, "ws://");
+  } else if (cleaned.startsWith("https://")) {
+    cleaned = cleaned.replace(/^https:\/\//i, "wss://");
+  }
+  return cleaned;
+};
+
+const WS_URL = getNormalizedWsUrl();
 
 export function useSocket() {
   const [loading, setLoading] = useState(true);

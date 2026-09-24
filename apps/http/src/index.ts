@@ -7,7 +7,24 @@ import { CreateRoomSchema } from "@repo/common/types";
 import { prismaClient } from "@repo/db";
 
 const app = express();
-app.use(cors());
+
+// Comprehensive CORS middleware to allow requests from any frontend domain (Vercel, localhost, etc.)
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, *");
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization", "*"]
+}));
+
 app.use(express.json());
 
 app.get("/", (req, res) => {

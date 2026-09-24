@@ -707,6 +707,7 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   // 1. Fetch initial shapes from DB for this room
   useEffect(() => {
+    if (!roomId) return;
     getExistingShapes(roomId).then((data) => {
       setShapes(data);
     });
@@ -714,13 +715,13 @@ export function Canvas({ roomId }: { roomId: string | number }) {
 
   // 2. Join WebSocket room & receive live shapes and deletions
   useEffect(() => {
-    if (!loading && socket) {
-      socket.send(
-        JSON.stringify({
-          type: 'join_room',
-          roomId: Number(roomId),
-        })
-      );
+    if (!roomId || loading || !socket) return;
+    socket.send(
+      JSON.stringify({
+        type: 'join_room',
+        roomId: Number(roomId),
+      })
+    );
 
       socket.onmessage = (event) => {
         try {
@@ -862,7 +863,6 @@ export function Canvas({ roomId }: { roomId: string | number }) {
           }
         } catch (e) { }
       };
-    }
   }, [socket, loading, roomId]);
 
   // 3. Set canvas dimensions and redraw whenever shapes, pan, zoom, selection, or marquee changes
@@ -1859,8 +1859,10 @@ export function Canvas({ roomId }: { roomId: string | number }) {
       );
     }
 
-    // Auto-switch back to the select / cursor tool once the shape is created
-    setSelectedTool('select');
+    // Auto-switch back to the select tool for geometric shapes, but keep pencil active for continuous freehand sketching
+    if (selectedTool !== 'pencil') {
+      setSelectedTool('select');
+    }
   };
 
   const handleMouseLeave = () => {
