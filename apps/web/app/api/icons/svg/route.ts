@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Return clean vector badge fallback so canvas rendering never fails
-  const fallbackBadge = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#1e1e24" stroke="#cae39f" stroke-width="4"/><text x="50" y="55" fill="#cae39f" font-size="13" font-weight="bold" font-family="system-ui" text-anchor="middle">${rawName.slice(0, 8)}</text></svg>`;
+  const fallbackBadge = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#1e1e24" stroke="#cae39f" stroke-width="4"/><text x="50" y="55" fill="#cae39f" font-size="13" font-weight="bold" font-family="'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" text-anchor="middle">${rawName.slice(0, 8)}</text></svg>`;
 
   return new NextResponse(fallbackBadge, {
     status: 200,

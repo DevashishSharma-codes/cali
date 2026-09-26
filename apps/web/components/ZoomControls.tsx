@@ -36,7 +36,7 @@ export function ZoomControls({
         boxShadow:
           '0 16px 36px -8px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2)',
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+          '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
         userSelect: 'none',
       }}
     >

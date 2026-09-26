@@ -111,7 +111,7 @@ export function StyleSidebar({
             gap: '14px',
             color: '#f8fafc',
             fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+              '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
             userSelect: 'none',
             scrollbarWidth: 'none',
           }}

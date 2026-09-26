@@ -601,7 +601,7 @@ export function EntityLibraryModal({
     const fallbackSvg =
       cachedSvg && cachedSvg.includes('<svg')
         ? cachedSvg
-        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#1e1e24" stroke="#cae39f" stroke-width="4"/><text x="50" y="55" fill="#cae39f" font-size="13" font-weight="bold" font-family="system-ui" text-anchor="middle">${icon.title.slice(0, 8)}</text></svg>`;
+        : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#1e1e24" stroke="#cae39f" stroke-width="4"/><text x="50" y="55" fill="#cae39f" font-size="13" font-weight="bold" font-family="'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" text-anchor="middle">${icon.title.slice(0, 8)}</text></svg>`;
 
     const entity: LibraryEntity = {
       id: `online-${icon.iconName.replace(/[^a-zA-Z0-9]/g, '-')}`,
@@ -755,7 +755,7 @@ export function EntityLibraryModal({
         padding: isMaximized ? '12px' : '24px',
         animation: 'fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+          '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif',
         WebkitFontSmoothing: 'antialiased',
       }}
       onClick={onClose}

@@ -217,7 +217,7 @@ export default function Home() {
         overflowX: 'hidden',
         backgroundColor: '#E5E4DE',
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+          '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       }}
     >
       {/* ==================================================================== */}
@@ -225,6 +225,7 @@ export default function Home() {
       {/* ==================================================================== */}
       <section
         id="editorial-hero-section"
+        className="hero-section"
         style={{
           position: 'relative',
           width: '100%',
@@ -246,6 +247,7 @@ export default function Home() {
       >
         {/* Top Navigation Bar with Picasso Branding & Auth */}
         <header
+          className="hero-header"
           style={{
             position: 'relative',
             zIndex: 50,
@@ -261,6 +263,7 @@ export default function Home() {
         >
           {/* Left Brand Official Logo & Title */}
           <div
+            className="hero-brand"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -307,6 +310,7 @@ export default function Home() {
           {/* Center Room Quick Jump */}
           <form
             onSubmit={handleJoinRoom}
+            className="hero-search-form"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -359,7 +363,7 @@ export default function Home() {
           </form>
 
           {/* Right Action / Auth Button */}
-          <div>
+          <div className="hero-auth-group">
             {isLoaded && isSignedIn ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <button
@@ -443,6 +447,7 @@ export default function Home() {
 
         {/* Center Spatial Stage (Typography Framing) */}
         <div
+          className="hero-stage"
           style={{
             position: 'relative',
             width: '100%',
@@ -456,17 +461,18 @@ export default function Home() {
           {/* TOP-LEFT EDITORIAL STATEMENT                                     */}
           {/* ---------------------------------------------------------------- */}
           <div
+            className="hero-statement-left"
             style={{
               position: 'absolute',
               top: '4%',
               left: '2%',
-              maxWidth: 'clamp(280px, 32vw, 450px)',
+              maxWidth: 'clamp(290px, 32vw, 440px)',
               zIndex: 25,
-              fontSize: 'clamp(12px, 1.05vw, 14.5px)',
-              lineHeight: 1.62,
+              fontSize: 'clamp(13px, 1.1vw, 15px)',
+              lineHeight: 1.6,
               color: '#151515',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               textAlign: 'left',
               letterSpacing: '-0.015em',
               fontWeight: 450,
@@ -475,7 +481,7 @@ export default function Home() {
           >
             <div
               style={{
-                fontSize: 'clamp(18px, 1.9vw, 26px)',
+                fontSize: 'clamp(19px, 2.0vw, 26px)',
                 fontWeight: 650,
                 letterSpacing: '-0.025em',
                 marginBottom: '10px',
@@ -486,23 +492,32 @@ export default function Home() {
             </div>
             The most intuitive spatial canvas for real-time collaboration. Picasso is built for creators, architects, and product teams who thrive in the open. Every line, shape, and vector stroke updates instantly across every connected screen with zero friction. Free from borders and page limits, your ideas collide, evolve, and come alive in continuous multiplayer flow.
           </div>
+
+          {/* Mobile Illustration (Shown on tablet/phone between statements) */}
+          <div className="hero-mobile-image-wrap">
+            <img
+              src="/image-copy.png"
+              alt="Picasso Studio - Hand-drawn colored drawing pencils and pens in studio cup"
+            />
+          </div>
         </div>
 
         {/* ---------------------------------------------------------------- */}
         {/* BOTTOM-RIGHT EDITORIAL STATEMENT                                 */}
         {/* ---------------------------------------------------------------- */}
         <div
+          className="hero-statement-right"
           style={{
             position: 'absolute',
             bottom: '28px',
             right: '36px',
-            maxWidth: 'clamp(270px, 28vw, 400px)',
+            maxWidth: 'clamp(280px, 30vw, 420px)',
             zIndex: 25,
-            fontSize: 'clamp(11.5px, 0.95vw, 13px)',
-            lineHeight: 1.55,
+            fontSize: 'clamp(12.5px, 1.0vw, 14.5px)',
+            lineHeight: 1.56,
             color: '#151515',
             fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+              '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             textAlign: 'left',
             letterSpacing: '-0.015em',
             fontWeight: 450,
@@ -511,10 +526,10 @@ export default function Home() {
         >
           <div
             style={{
-              fontSize: 'clamp(15px, 1.5vw, 21px)',
+              fontSize: 'clamp(16px, 1.6vw, 22px)',
               fontWeight: 650,
               letterSpacing: '-0.02em',
-              marginBottom: '6px',
+              marginBottom: '7px',
               color: '#111111',
             }}
           >
@@ -604,8 +619,9 @@ export default function Home() {
           userSelect: 'none',
         }}
       >
-        {/* Full-width Spatial Typography & Boxel Stage */}
+        {/* Desktop Artistic Spatial Collage Stage (>= 769px) */}
         <div
+          className="perspectives-desktop-stage"
           style={{
             position: 'relative',
             width: '100%',
@@ -624,11 +640,11 @@ export default function Home() {
               left: '10%',
               top: '14%',
               fontSize: 'clamp(14px, 1.4vw, 17px)',
-              fontWeight: 500,
-              color: 'rgba(20, 20, 20, 0.65)',
+              fontWeight: 600,
+              color: 'rgba(20, 20, 20, 0.75)',
               letterSpacing: '-0.01em',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Real-Time Sync
@@ -641,12 +657,12 @@ export default function Home() {
               left: '18%',
               top: '20%',
               fontSize: 'clamp(28px, 4.2vw, 54px)',
-              fontWeight: 450,
+              fontWeight: 550,
               color: '#151515',
               letterSpacing: '-0.03em',
               lineHeight: 1.0,
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Perspectives
@@ -659,11 +675,11 @@ export default function Home() {
               left: '76%',
               top: '18%',
               fontSize: 'clamp(14px, 1.4vw, 17px)',
-              fontWeight: 500,
-              color: 'rgba(20, 20, 20, 0.65)',
+              fontWeight: 600,
+              color: 'rgba(20, 20, 20, 0.75)',
               letterSpacing: '-0.01em',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Zero Borders
@@ -676,11 +692,11 @@ export default function Home() {
               left: '64%',
               top: '40%',
               fontSize: 'clamp(24px, 3.4vw, 44px)',
-              fontWeight: 400,
+              fontWeight: 500,
               color: '#151515',
               letterSpacing: '-0.02em',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             on
@@ -693,11 +709,11 @@ export default function Home() {
               left: '72%',
               top: '48%',
               fontSize: 'clamp(14px, 1.4vw, 17px)',
-              fontWeight: 500,
-              color: 'rgba(20, 20, 20, 0.65)',
+              fontWeight: 600,
+              color: 'rgba(20, 20, 20, 0.75)',
               letterSpacing: '-0.01em',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Multiplayer Flow
@@ -710,11 +726,11 @@ export default function Home() {
               left: '12%',
               top: '68%',
               fontSize: 'clamp(14px, 1.4vw, 17px)',
-              fontWeight: 500,
-              color: 'rgba(20, 20, 20, 0.65)',
+              fontWeight: 600,
+              color: 'rgba(20, 20, 20, 0.75)',
               letterSpacing: '-0.01em',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Wireframe & Sketch
@@ -727,12 +743,12 @@ export default function Home() {
               left: '36%',
               top: '66%',
               fontSize: 'clamp(30px, 4.8vw, 60px)',
-              fontWeight: 500,
+              fontWeight: 600,
               color: '#151515',
               letterSpacing: '-0.03em',
               lineHeight: 1.0,
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Infinite Creation
@@ -745,26 +761,24 @@ export default function Home() {
               left: '75%',
               top: '72%',
               fontSize: 'clamp(14px, 1.4vw, 17px)',
-              fontWeight: 500,
-              color: 'rgba(20, 20, 20, 0.65)',
+              fontWeight: 600,
+              color: 'rgba(20, 20, 20, 0.75)',
               letterSpacing: '-0.01em',
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             }}
           >
             Hybrid Vectors
           </div>
 
-          {/* ---------------------------------------------------------------- */}
-          {/* ARTIST PALETTE & BRUSH (FLOATING IN CENTER SPACE)                */}
-          {/* ---------------------------------------------------------------- */}
+          {/* ARTIST PALETTE & BRUSH (FLOATING IN CENTER SPACE) */}
           <div
             style={{
               position: 'absolute',
               left: '48%',
               top: '42%',
               transform: 'translate(-50%, -50%) rotate(-4deg)',
-              width: 'clamp(140px, 15vw, 205px)',
+              width: 'clamp(150px, 16vw, 220px)',
               pointerEvents: 'none',
               userSelect: 'none',
               zIndex: 8,
@@ -778,107 +792,138 @@ export default function Home() {
                 width: '100%',
                 height: 'auto',
                 display: 'block',
-                filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.08))',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 6px 18px rgba(0, 0, 0, 0.08))',
               }}
             />
           </div>
 
-          {/* ---------------------------------------------------------------- */}
-          {/* SCATTERED COLORED JIGSAW PUZZLE PIECES                           */}
-          {/* ---------------------------------------------------------------- */}
-
-          {/* 1. Red Puzzle Piece (#F05138) */}
-          <PuzzlePiece
-            color="#F05138"
-            variant={1}
-            size={38}
-            rotation={-6}
-            style={{ left: '42%', top: '8%' }}
-          />
-
-          {/* 2. Brown Puzzle Piece (#6E432B) */}
-          <PuzzlePiece
-            color="#6E432B"
-            variant={2}
-            size={36}
-            rotation={12}
-            style={{ left: '8%', top: '38%' }}
-          />
-
-          {/* 3. Orange Puzzle Piece (#F98825) */}
-          <PuzzlePiece
-            color="#F98825"
-            variant={3}
-            size={38}
-            rotation={-8}
-            style={{ left: '54%', top: '16%' }}
-          />
-
-          {/* 4. Blue Puzzle Piece (#2E82E6) */}
-          <PuzzlePiece
-            color="#2E82E6"
-            variant={4}
-            size={38}
-            rotation={8}
-            style={{ left: '62%', top: '30%' }}
-          />
-
-          {/* 5. Purple Puzzle Piece (#9955FF) */}
-          <PuzzlePiece
-            color="#9955FF"
-            variant={1}
-            size={38}
-            rotation={15}
-            style={{ left: '90%', top: '14%' }}
-          />
-
-          {/* 6. Black Puzzle Piece (#1A1A1A) */}
-          <PuzzlePiece
-            color="#1A1A1A"
-            variant={2}
-            size={36}
-            rotation={-8}
-            style={{ left: '5%', top: '64%' }}
-          />
-
-          {/* 7. Pink Puzzle Piece (#F7A3C4) */}
-          <PuzzlePiece
-            color="#F7A3C4"
-            variant={3}
-            size={36}
-            rotation={5}
-            style={{ left: '22%', top: '56%' }}
-          />
-
-          {/* 8. Cyan Puzzle Piece (#57D5F2) */}
-          <PuzzlePiece
-            color="#57D5F2"
-            variant={4}
-            size={38}
-            rotation={-14}
-            style={{ left: '18%', top: '84%' }}
-          />
-
-          {/* 9. Yellow Puzzle Piece (#FBC425) */}
-          <PuzzlePiece
-            color="#FBC425"
-            variant={1}
-            size={38}
-            rotation={10}
-            style={{ left: '83%', top: '52%' }}
-          />
-
-          {/* 10. Lime Green Puzzle Piece (#44C554) */}
-          <PuzzlePiece
-            color="#44C554"
-            variant={2}
-            size={38}
-            rotation={-6}
-            style={{ left: '82%', top: '80%' }}
-          />
+          {/* SCATTERED COLORED JIGSAW PUZZLE PIECES */}
+          <PuzzlePiece color="#F05138" variant={1} size={38} rotation={-6} style={{ left: '42%', top: '8%' }} />
+          <PuzzlePiece color="#6E432B" variant={2} size={36} rotation={12} style={{ left: '8%', top: '38%' }} />
+          <PuzzlePiece color="#F98825" variant={3} size={38} rotation={-8} style={{ left: '54%', top: '16%' }} />
+          <PuzzlePiece color="#2E82E6" variant={4} size={38} rotation={8} style={{ left: '62%', top: '30%' }} />
+          <PuzzlePiece color="#9955FF" variant={1} size={38} rotation={15} style={{ left: '88%', top: '14%' }} />
+          <PuzzlePiece color="#1A1A1A" variant={2} size={36} rotation={-8} style={{ left: '6%', top: '64%' }} />
+          <PuzzlePiece color="#F7A3C4" variant={3} size={36} rotation={5} style={{ left: '22%', top: '56%' }} />
+          <PuzzlePiece color="#57D5F2" variant={4} size={38} rotation={-14} style={{ left: '18%', top: '84%' }} />
+          <PuzzlePiece color="#FBC425" variant={1} size={38} rotation={10} style={{ left: '83%', top: '52%' }} />
+          <PuzzlePiece color="#44C554" variant={2} size={38} rotation={-6} style={{ left: '82%', top: '80%' }} />
         </div>
 
-        {/* Minimal Bottom Editorial Action */}
+        {/* Mobile-Optimized Perspectives Stage (<= 768px) */}
+        <div className="perspectives-mobile-stage">
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 650,
+              color: 'rgba(20, 20, 20, 0.7)',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              textAlign: 'center',
+            }}
+          >
+            <span>Real-Time Spatial Canvas</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(28px, 6.5vw, 42px)',
+              fontWeight: 650,
+              color: '#151515',
+              letterSpacing: '-0.025em',
+              lineHeight: 1.15,
+              textAlign: 'center',
+              margin: '0',
+            }}
+          >
+            Perspectives on <span style={{ color: '#E51414' }}>Infinite Creation</span>
+          </h2>
+
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '240px',
+              padding: '16px 20px',
+              margin: '4px auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxSizing: 'border-box',
+            }}
+          >
+            <img
+              src="/artist-palette.png"
+              alt="Artist palette - Picasso Studio"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 8px 20px rgba(0, 0, 0, 0.08))',
+              }}
+            />
+            <PuzzlePiece
+              color="#F05138"
+              variant={1}
+              size={28}
+              rotation={-10}
+              style={{ top: '2px', left: '2px' }}
+            />
+            <PuzzlePiece
+              color="#2E82E6"
+              variant={4}
+              size={28}
+              rotation={12}
+              style={{ top: '6px', right: '4px' }}
+            />
+            <PuzzlePiece
+              color="#44C554"
+              variant={2}
+              size={28}
+              rotation={-6}
+              style={{ bottom: '2px', right: '28px' }}
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '10px 18px',
+              width: '100%',
+              padding: '0 8px',
+              boxSizing: 'border-box',
+            }}
+          >
+            {[
+              'Real-Time Sync',
+              'Zero Borders',
+              'Multiplayer Flow',
+              'Wireframe & Sketch',
+              'Hybrid Vectors',
+            ].map((tag, idx) => (
+              <React.Fragment key={tag}>
+                {idx > 0 && <span style={{ color: 'rgba(0, 0, 0, 0.25)', fontSize: '12px' }}>•</span>}
+                <span
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: '#151515',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {tag}
+                </span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom Editorial Action */}
         <div
           style={{
             marginTop: '24px',
@@ -924,37 +969,10 @@ export default function Home() {
       {/* ==================================================================== */}
       <section
         id="schedule-roadmap-section"
-        style={{
-          position: 'relative',
-          width: '100%',
-          minHeight: '100vh',
-          backgroundColor: '#ffffff',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '60px 0',
-          boxSizing: 'border-box',
-          userSelect: 'none',
-        }}
+        className="schedule-section"
       >
-        {/* Left Half: "Picasso Architectural Pencils" 3D Branded Art (Transparent & Flush Left) */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: '42%',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-start',
-            padding: 0,
-            margin: 0,
-            zIndex: 1,
-            pointerEvents: 'none',
-          }}
-        >
+        {/* Left Half: "Picasso Architectural Pencils" 3D Branded Art */}
+        <div className="schedule-pencils-art">
           <img
             src="/picasso-pencils.png"
             alt="Picasso Spatial Canvas - Branded architectural drawing pencils"
@@ -974,19 +992,7 @@ export default function Home() {
         </div>
 
         {/* Top-Right Bold Distressed Headline Block */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '44px',
-            right: '64px',
-            zIndex: 30,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif',
-          }}
-        >
+        <div className="schedule-headline-block">
           <div
             style={{
               fontSize: 'clamp(11px, 1.1vw, 15px)',
@@ -1005,7 +1011,7 @@ export default function Home() {
               letterSpacing: '-0.03em',
               lineHeight: 0.84,
               color: '#111111',
-              fontFamily: '"Impact", "Arial Black", -apple-system, sans-serif',
+              fontFamily: '"Impact", "Arial Black", "SF Pro Display", -apple-system, sans-serif',
               textTransform: 'uppercase',
               filter: 'contrast(1.2)',
               textShadow: '0 0 1px rgba(0,0,0,0.5)',
@@ -1015,18 +1021,107 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Center Staggered Stepped Horizontal Bars */}
+        <div className="schedule-list-wrap">
+          {[
+            { tag: 'v1.0', title: 'INFINITE SPATIAL MATRIX', subtitle: 'ZERO-LATENCY 2D VIEWPORT', offsetLeft: '28%', color: '#D97706', subColor: 'rgba(217, 119, 6, 0.88)' },
+            { tag: 'v1.2', title: 'FREEHAND VECTOR ENGINE', subtitle: 'ADAPTIVE BEZIER SMOOTHING', offsetLeft: '33%', color: '#2563EB', subColor: 'rgba(37, 99, 235, 0.88)' },
+            { tag: 'v1.4', title: 'REAL-TIME WEBSOCKET MESH', subtitle: 'HIGH-THROUGHPUT MULTI-CLIENT SYNC', offsetLeft: '30%', color: '#059669', subColor: 'rgba(5, 150, 105, 0.88)' },
+            { tag: 'v1.6', title: 'MULTI-CURSOR PRESENCE DOCK', subtitle: 'LIVE USER POSITIONING & CURSORS', offsetLeft: '36%', color: '#EA580C', subColor: 'rgba(234, 88, 12, 0.88)' },
+            { tag: 'v1.8', title: 'INTELLIGENT SHAPE HEURISTICS', subtitle: 'BOXELS, ARROWS & RECTANGLES', offsetLeft: '39%', color: '#7C3AED', subColor: 'rgba(124, 58, 237, 0.88)' },
+            { tag: 'v2.0', title: 'CONFLICT-FREE CRDT ENGINE', subtitle: 'DETERMINISTIC MERGE & MUTATION', offsetLeft: '34%', color: '#DB2777', subColor: 'rgba(219, 39, 119, 0.88)' },
+            { tag: 'v2.2', title: 'PERSISTENT ROOM TOPOLOGY', subtitle: 'INSTANT ZERO-CONFIG WHITEBOARDS', offsetLeft: '37%', color: '#0891B2', subColor: 'rgba(8, 145, 178, 0.88)' },
+            { tag: 'v2.4', title: 'VECTOR HISTORY & TIMELINE', subtitle: 'INSTANT UNDO / REDO BUFFER MATRIX', offsetLeft: '31%', color: '#F59E0B', subColor: 'rgba(245, 158, 11, 0.88)' },
+            { tag: 'v2.6', title: 'TRANSLUCENT COLOR GELS', subtitle: 'MULTIPLY HUE OVERLAY PALETTES', offsetLeft: '33%', color: '#65A30D', subColor: 'rgba(101, 163, 13, 0.88)' },
+            { tag: 'v2.8', title: 'OFFLINE-FIRST LOCAL STORAGE', subtitle: 'CLIENT CACHING & FAST RECONNECT', offsetLeft: '32%', color: '#4F46E5', subColor: 'rgba(79, 70, 229, 0.88)' },
+            { tag: 'v3.0', title: 'LOSSLESS ASSET EXPORTS', subtitle: 'SVG, HIGH-RES PNG & JSON SCHEMAS', offsetLeft: '26%', color: '#DC2626', subColor: 'rgba(220, 38, 38, 0.88)' },
+            { tag: 'v3.2', title: 'END-TO-END ENCRYPTED CANVASES', subtitle: 'SECURE PEER TRANSPORT CHANNELS', offsetLeft: '36%', color: '#0D9488', subColor: 'rgba(13, 148, 136, 0.88)' },
+            { tag: 'v3.4', title: 'MULTI-VIEW CAMERA FOLLOWING', subtitle: 'SPATIAL ZOOM & COLLAB FOCUS', offsetLeft: '34%', color: '#2563EB', subColor: 'rgba(37, 99, 235, 0.88)' },
+            { tag: 'PRO', title: '[ THE FUTURE OF SPATIAL COLLABORATION : PICASSO ]', subtitle: 'NEXT-GEN MULTIPLAYER ENGINE 2.0', offsetLeft: '38%', color: '#E51414', subColor: 'rgba(229, 20, 20, 0.9)', highlight: true },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              className="schedule-row-item"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                height: 'clamp(24px, 3vh, 32px)',
+                marginLeft: item.offsetLeft,
+                backgroundColor: 'transparent',
+                paddingLeft: '0px',
+                paddingRight: '24px',
+                boxSizing: 'border-box',
+                transition: 'transform 0.18s ease, opacity 0.18s ease',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateX(8px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateX(0)';
+              }}
+              onClick={handleInstantRoom}
+            >
+              <div
+                className="schedule-row-content"
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: 'clamp(10px, 1.2vw, 18px)',
+                  fontFamily:
+                    "'Architects Daughter', 'Patrick Hand', 'Gochi Hand', 'Caveat', cursive, sans-serif",
+                }}
+              >
+                {item.tag && (
+                  <span
+                    style={{
+                      fontSize: 'clamp(13px, 1.15vw, 16px)',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      color: item.color,
+                      minWidth: 'clamp(36px, 3.4vw, 50px)',
+                      fontFamily: "'Architects Daughter', 'Patrick Hand', cursive, sans-serif",
+                    }}
+                  >
+                    {item.tag}
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontSize: 'clamp(13.5px, 1.25vw, 17px)',
+                    fontWeight: item.highlight ? 800 : 700,
+                    letterSpacing: '0.03em',
+                    color: item.color,
+                    textTransform: 'uppercase',
+                    fontFamily: "'Architects Daughter', 'Patrick Hand', cursive, sans-serif",
+                    textShadow: item.highlight ? `0 0 1px ${item.color}` : 'none',
+                  }}
+                >
+                  {item.title}
+                </span>
+                {item.subtitle && (
+                  <span
+                    style={{
+                      fontSize: 'clamp(11.5px, 1vw, 14px)',
+                      fontWeight: 600,
+                      letterSpacing: '0.02em',
+                      color: item.subColor,
+                      textTransform: 'uppercase',
+                      marginLeft: '6px',
+                      fontFamily: "'Patrick Hand', 'Architects Daughter', cursive, sans-serif",
+                    }}
+                  >
+                    {item.subtitle}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Bottom-Right Metadata & Branding */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '36px',
-            right: '64px',
-            zIndex: 30,
-            textAlign: 'right',
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif',
-          }}
-        >
+        <div className="schedule-meta-block">
           <div
             style={{
               display: 'flex',
@@ -1072,134 +1167,6 @@ export default function Home() {
             <div>® PICASSO RESEARCH LABS. REAL-TIME MULTIPLAYER SPATIAL CANVASES.</div>
             <div>POWERED BY WEBSOCKETS, DETERMINISTIC CRDTS & VECTOR COMPOSITING.</div>
           </div>
-        </div>
-
-        {/* Center Staggered Stepped Horizontal Bars (Starting Directly Over The Image Strokes) */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 10,
-            width: '100%',
-            maxWidth: '1360px',
-            margin: '0 auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'clamp(4px, 0.6vh, 8px)',
-            paddingTop: '20px',
-            paddingBottom: '20px',
-          }}
-        >
-          {[
-            { tag: 'v1.0', title: 'INFINITE SPATIAL MATRIX', subtitle: 'ZERO-LATENCY 2D VIEWPORT', offsetLeft: '28%', color: '#D97706', subColor: 'rgba(217, 119, 6, 0.88)' },
-            { tag: 'v1.2', title: 'FREEHAND VECTOR ENGINE', subtitle: 'ADAPTIVE BEZIER SMOOTHING', offsetLeft: '33%', color: '#2563EB', subColor: 'rgba(37, 99, 235, 0.88)' },
-            { tag: 'v1.4', title: 'REAL-TIME WEBSOCKET MESH', subtitle: 'HIGH-THROUGHPUT MULTI-CLIENT SYNC', offsetLeft: '30%', color: '#059669', subColor: 'rgba(5, 150, 105, 0.88)' },
-            { tag: 'v1.6', title: 'MULTI-CURSOR PRESENCE DOCK', subtitle: 'LIVE USER POSITIONING & CURSORS', offsetLeft: '36%', color: '#EA580C', subColor: 'rgba(234, 88, 12, 0.88)' },
-            { tag: 'v1.8', title: 'INTELLIGENT SHAPE HEURISTICS', subtitle: 'BOXELS, ARROWS & RECTANGLES', offsetLeft: '39%', color: '#7C3AED', subColor: 'rgba(124, 58, 237, 0.88)' },
-            { tag: 'v2.0', title: 'CONFLICT-FREE CRDT ENGINE', subtitle: 'DETERMINISTIC MERGE & MUTATION', offsetLeft: '34%', color: '#DB2777', subColor: 'rgba(219, 39, 119, 0.88)' },
-            { tag: 'v2.2', title: 'PERSISTENT ROOM TOPOLOGY', subtitle: 'INSTANT ZERO-CONFIG WHITEBOARDS', offsetLeft: '37%', color: '#0891B2', subColor: 'rgba(8, 145, 178, 0.88)' },
-            { tag: 'v2.4', title: 'VECTOR HISTORY & TIMELINE', subtitle: 'INSTANT UNDO / REDO BUFFER MATRIX', offsetLeft: '31%', color: '#F59E0B', subColor: 'rgba(245, 158, 11, 0.88)' },
-            { tag: 'v2.6', title: 'TRANSLUCENT COLOR GELS', subtitle: 'MULTIPLY HUE OVERLAY PALETTES', offsetLeft: '33%', color: '#65A30D', subColor: 'rgba(101, 163, 13, 0.88)' },
-            { tag: 'v2.8', title: 'OFFLINE-FIRST LOCAL STORAGE', subtitle: 'CLIENT CACHING & FAST RECONNECT', offsetLeft: '32%', color: '#4F46E5', subColor: 'rgba(79, 70, 229, 0.88)' },
-            { tag: 'v3.0', title: 'LOSSLESS ASSET EXPORTS', subtitle: 'SVG, HIGH-RES PNG & JSON SCHEMAS', offsetLeft: '26%', color: '#DC2626', subColor: 'rgba(220, 38, 38, 0.88)' },
-            { tag: 'v3.2', title: 'END-TO-END ENCRYPTED CANVASES', subtitle: 'SECURE PEER TRANSPORT CHANNELS', offsetLeft: '36%', color: '#0D9488', subColor: 'rgba(13, 148, 136, 0.88)' },
-            { tag: 'v3.4', title: 'MULTI-VIEW CAMERA FOLLOWING', subtitle: 'SPATIAL ZOOM & COLLAB FOCUS', offsetLeft: '34%', color: '#2563EB', subColor: 'rgba(37, 99, 235, 0.88)' },
-            { tag: 'PRO', title: '[ THE FUTURE OF SPATIAL COLLABORATION : PICASSO ]', subtitle: 'NEXT-GEN MULTIPLAYER ENGINE 2.0', offsetLeft: '38%', color: '#E51414', subColor: 'rgba(229, 20, 20, 0.9)', highlight: true },
-            { tag: '', title: '', subtitle: '', offsetLeft: '35%', color: '#EA580C', empty: true },
-            { tag: '', title: '', subtitle: '', offsetLeft: '30%', color: '#2563EB', empty: true },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              style={{
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                height: item.empty ? 'clamp(10px, 1.4vh, 16px)' : 'clamp(24px, 3vh, 32px)',
-                marginLeft: item.offsetLeft,
-                backgroundColor: 'transparent',
-                paddingLeft: '0px',
-                paddingRight: '24px',
-                boxSizing: 'border-box',
-                transition: 'transform 0.18s ease, opacity 0.18s ease',
-                cursor: item.empty ? 'default' : 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                if (!item.empty) {
-                  e.currentTarget.style.transform = 'translateX(8px)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!item.empty) {
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }
-              }}
-              onClick={item.empty ? undefined : handleInstantRoom}
-            >
-              {!item.empty ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    gap: 'clamp(10px, 1.2vw, 18px)',
-                    fontFamily:
-                      "'Architects Daughter', 'Patrick Hand', 'Gochi Hand', 'Caveat', cursive, sans-serif",
-                  }}
-                >
-                  {item.tag && (
-                    <span
-                      style={{
-                        fontSize: 'clamp(13px, 1.15vw, 16px)',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em',
-                        color: item.color,
-                        minWidth: 'clamp(36px, 3.4vw, 50px)',
-                        fontFamily: "'Architects Daughter', 'Patrick Hand', cursive, sans-serif",
-                      }}
-                    >
-                      {item.tag}
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      fontSize: 'clamp(13.5px, 1.25vw, 17px)',
-                      fontWeight: item.highlight ? 800 : 700,
-                      letterSpacing: '0.03em',
-                      color: item.color,
-                      textTransform: 'uppercase',
-                      fontFamily: "'Architects Daughter', 'Patrick Hand', cursive, sans-serif",
-                      textShadow: item.highlight ? `0 0 1px ${item.color}` : 'none',
-                    }}
-                  >
-                    {item.title}
-                  </span>
-                  {item.subtitle && (
-                    <span
-                      style={{
-                        fontSize: 'clamp(11.5px, 1vw, 14px)',
-                        fontWeight: 600,
-                        letterSpacing: '0.02em',
-                        color: item.subColor,
-                        textTransform: 'uppercase',
-                        marginLeft: '6px',
-                        fontFamily: "'Patrick Hand', 'Architects Daughter', cursive, sans-serif",
-                      }}
-                    >
-                      {item.subtitle}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div
-                  style={{
-                    width: '60px',
-                    height: '2px',
-                    backgroundColor: item.color,
-                    opacity: 0.35,
-                    borderRadius: '1px',
-                  }}
-                />
-              )}
-            </div>
-          ))}
         </div>
       </section>
 
@@ -1293,7 +1260,7 @@ export default function Home() {
           <p
             style={{
               fontFamily:
-                '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               fontSize: 'clamp(15px, 2vw, 18px)',
               fontWeight: 450,
               lineHeight: 1.5,
@@ -1369,7 +1336,7 @@ export default function Home() {
                   alignItems: 'center',
                   boxSizing: 'border-box',
                   fontFamily:
-                    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif',
+                    '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                 }}
               >
                 <div

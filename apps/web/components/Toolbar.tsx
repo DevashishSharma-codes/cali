@@ -75,7 +75,7 @@ export function Toolbar({
           '0 20px 40px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)',
         zIndex: 100,
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+          '"SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, system-ui, sans-serif',
       }}
     >
       {tools.map((tool) => {
